@@ -1,0 +1,15 @@
+{
+  "name": "snipe-design",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "solve": "node scripts/solve.cjs"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
+

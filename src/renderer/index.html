@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnipeDesign — Phase 1 (Rig)</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="title">SnipeDesign — Laboratorio de Análisis</div>
+    <div class="toolbar">
+      <select id="presetSelect"></select>
+      <label class="auto-toggle"><input type="checkbox" id="autoUpdate" /> Auto</label>
+      <button id="runBtn">Simular</button>
+      <button id="exportJsonBtn" disabled>Export JSON</button>
+      <button id="exportCsvBtn" disabled>Export CSV</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>Laboratorio de Análisis</h2>
+
+      <details open>
+        <summary>Geometría del Palo (medidas desde el pie)</summary>
+        <div class="grid">
+          <label class="field">
+            <span>Mástil L (mm) <span class="hint">(6480-6500)</span></span>
+            <div class="field-row">
+              <input id="mastLengthMm" type="number" step="1" placeholder="6500" />
+              <input id="mastLengthMmSlider" type="range" min="6450" max="6550" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Cubierta/fogonadura z (mm) <span class="hint">(390-400)</span></span>
+            <div class="field-row">
+              <input id="partnersZMm" type="number" step="1" placeholder="395" />
+              <input id="partnersZMmSlider" type="range" min="300" max="500" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Spreader z (mm)</span>
+            <div class="field-row">
+              <input id="spreaderZMm" type="number" step="1" placeholder="2500" />
+              <input id="spreaderZMmSlider" type="range" min="2000" max="3000" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Driza/Forestay z (mm) <span class="hint">(4860-4962)</span></span>
+            <div class="field-row">
+              <input id="houndsZMm" type="number" step="1" placeholder="4800" />
+              <input id="houndsZMmSlider" type="range" min="4100" max="5100" step="1" value="4800" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Obenques z (mm) <span class="hint">(shroud attach)</span></span>
+            <div class="field-row">
+              <input id="shroudAttachZMm" type="number" step="1" placeholder="4980" />
+              <input id="shroudAttachZMmSlider" type="range" min="4100" max="5100" step="1" value="4980" />
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Chainplate x (mm)</span>
+            <div class="field-row">
+              <input id="chainplateXMm" type="number" step="1" placeholder="550" />
+              <input id="chainplateXMmSlider" type="range" min="500" max="600" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Chainplate y (mm) <span class="hint">(popa=negativo)</span></span>
+            <div class="field-row">
+              <input id="chainplateYMm" type="number" step="1" placeholder="-363" />
+              <input id="chainplateYMmSlider" type="range" min="-500" max="250" step="1" value="-363" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Bow y (mm) <span class="hint">(1498-1524)</span></span>
+            <div class="field-row">
+              <input id="bowYMm" type="number" step="1" placeholder="1511" />
+              <input id="bowYMmSlider" type="range" min="1450" max="1550" step="1" />
+            </div>
+          </label>
+        </div>
+      </details>
+
+      <details>
+        <summary>Rigidez del Palo (Avanzado)</summary>
+        <p class="hint-block">Valores típicos para mástil Snipe (Selden C060, 6061-T6): EI≈7500 N·m². Conicidad
+          SCIRA
+          empieza sobre la intersección de stays (~4500mm).</p>
+        <div class="grid">
+          <label class="field">
+            <span>EI base (N·m²) <span class="hint">(sección constante, 4000-10000)</span></span>
+            <div class="field-row">
+              <input id="mastEIBase" type="number" step="100" placeholder="7500" />
+              <input id="mastEIBaseSlider" type="range" min="4000" max="10000" step="100" />
+            </div>
+          </label>
+          <label class="field">
+            <span>EI tope (N·m²) <span class="hint">(punta cónica, 2000-6000)</span></span>
+            <div class="field-row">
+              <input id="mastEITop" type="number" step="100" placeholder="3500" />
+              <input id="mastEITopSlider" type="range" min="2000" max="6000" step="100" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Altura conicidad (mm) <span class="hint">(SCIRA: sobre stays ~4500)</span></span>
+            <div class="field-row">
+              <input id="taperStartZMm" type="number" step="50" placeholder="4500" />
+              <input id="taperStartZMmSlider" type="range" min="4000" max="5500" step="50" />
+            </div>
+          </label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Configuración de la Jarcia</summary>
+        <div class="grid">
+          <label class="field">
+            <span>Spreader length (mm)</span>
+            <div class="field-row">
+              <input id="spreaderLengthMm" type="number" step="1" />
+              <input id="spreaderLengthMmSlider" type="range" min="300" max="600" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Crucetas: Ángulo (deg) / Apertura</span>
+            <div class="field-row">
+              <input id="spreaderAngle" type="number" step="0.1" placeholder="8.4" />
+              <input id="spreaderAngleSlider" type="range" min="-20" max="50" step="0.5" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Pletina Obenques (mm) <span class="hint">(cambio base L0)</span></span>
+            <div class="field-row">
+              <input id="shroudBaseDeltaMm" type="number" step="1" placeholder="0" />
+              <input id="shroudBaseDeltaMmSlider" type="range" min="-50" max="50" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Obenque: ΔL0 port (mm) <span class="hint">(ajuste fino)</span></span>
+            <div class="field-row">
+              <input id="shroudDeltaPortMm" type="number" step="0.1" />
+              <input id="shroudDeltaPortMmSlider" type="range" min="-100" max="100" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Shroud ΔL0 stbd (mm)</span>
+            <div class="field-row">
+              <input id="shroudDeltaStbdMm" type="number" step="0.1" />
+              <input id="shroudDeltaStbdMmSlider" type="range" min="-100" max="100" step="1" />
+            </div>
+          </label>
+
+          <label class="field">
+            <span>Fogonadura kx (kN/m)</span>
+            <div class="field-row">
+              <input id="partnersKx" type="number" step="1" />
+              <input id="partnersKxSlider" type="range" min="0" max="100" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Fogonadura ky (kN/m)</span>
+            <div class="field-row">
+              <input id="partnersKy" type="number" step="1" />
+              <input id="partnersKySlider" type="range" min="0" max="100" step="1" />
+            </div>
+          </label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Condiciones de Navegación</summary>
+        <div class="grid">
+          <label class="field">
+            <span>Tensión Stay/Driza (kN)</span>
+            <div class="field-row">
+              <input id="jibHalyardTensionkN" type="number" step="0.01" placeholder="0" />
+              <input id="jibHalyardTensionkNSlider" type="range" min="0" max="2" step="0.01" value="0" />
+            </div>
+          </label>
+
+          <label>Load mode
+            <select id="loadMode">
+              <option value="none">Sin carga</option>
+              <option value="upwind">Upwind</option>
+              <option value="downwind">Downwind</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>q lateral (N/m)</span>
+            <div class="field-row">
+              <input id="qLateral" type="number" step="1" />
+              <input id="qLateralSlider" type="range" min="0" max="1000" step="10" />
+            </div>
+          </label>
+          <label>Perfil q(z)
+            <select id="qProfile">
+              <option value="uniform">Uniforme</option>
+              <option value="triangular">Triangular (más arriba)</option>
+            </select>
+          </label>
+        </div>
+      </details>
+
+      <details>
+        <summary>Velas</summary>
+
+        <!-- Controles Globales -->
+        <div class="sail-header">
+          <label class="sail-toggle">
+            <input id="sailsEnabled" type="checkbox" />
+            <span>Activar Simulación de Velas</span>
+          </label>
+        </div>
+
+        <div class="grid">
+          <label class="field">
+            <span>Presión viento (Pa) <span class="hint">(0-500)</span></span>
+            <div class="field-row">
+              <input id="sailPressurePa" type="number" step="5" min="0" max="500" />
+              <input id="sailPressurePaSlider" type="range" min="0" max="500" step="5" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Dirección del viento <span class="hint">(respecto al barco)</span></span>
+            <select id="sailWindSign">
+              <option value="1">→ Estribor: viento viene de la derecha, empuja velas a babor</option>
+              <option value="-1">← Babor: viento viene de la izquierda, empuja velas a estribor</option>
+            </select>
+          </label>
+          <label class="sail-toggle-inline">
+            <input id="showPressureVectors" type="checkbox" />
+            <span>Mostrar vectores de presión</span>
+          </label>
+        </div>
+
+        <!-- MAYOR -->
+        <fieldset class="sail-section">
+          <legend>
+            <label class="sail-toggle-inline">
+              <input id="mainEnabled" type="checkbox" />
+              <span>Vela Mayor</span>
+            </label>
+          </legend>
+
+          <!-- Velería: Diseño de la Vela -->
+          <div class="subsection">
+            <div class="subsection-title">Velería (Forma)</div>
+            <div class="grid">
+              <label class="field">
+                <span>Res. Barra/Cuerda (malla) <span class="hint">(evitar >30x20 para fluidez)</span></span>
+                <div class="field-row">
+                  <input id="mainLuffSeg" type="number" step="1" min="2" max="40" title="Resolución Vertical" />
+                  <input id="mainChordSeg" type="number" step="1" min="2" max="40" title="Resolución Horizontal" />
+                </div>
+                <div class="field-row">
+                  <input id="mainLuffSegSlider" type="range" min="2" max="40" step="1" />
+                  <input id="mainChordSegSlider" type="range" min="2" max="40" step="1" />
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Altura amura (tack) (mm) <span class="hint">(banda inferior)</span></span>
+                <div class="field-row">
+                  <input id="mainTackZMm" type="number" step="1" />
+                  <input id="mainTackZMmSlider" type="range" min="390" max="1500" step="1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Profundidad (%) <span class="hint">(draft)</span></span>
+                <div class="field-row">
+                  <input id="mainDraftPct" type="number" step="0.1" />
+                  <input id="mainDraftPctSlider" type="range" min="0" max="20" step="0.1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Posición draft (%) <span class="hint">(desde grátil)</span></span>
+                <div class="field-row">
+                  <input id="mainDraftPosPct" type="number" step="1" />
+                  <input id="mainDraftPosPctSlider" type="range" min="10" max="80" step="1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Secciones de forma <span class="hint">(2-6)</span></span>
+                <div class="field-row">
+                  <input id="mainShapeSections" type="number" step="1" min="2" max="6" />
+                  <input id="mainShapeSectionsSlider" type="range" min="2" max="6" step="1" />
+                </div>
+              </label>
+              <div class="field field-compact">
+                <span>Forma por secciones</span>
+                <div class="section-grid">
+                  <div class="section-row header">
+                    <span>#</span><span>Profundidad %</span><span>Pos. draft %</span>
+                  </div>
+                  <div class="section-row">
+                    <span>1</span><input id="mainSectionDepth1" type="number" step="0.1" /><input id="mainSectionPos1"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>2</span><input id="mainSectionDepth2" type="number" step="0.1" /><input id="mainSectionPos2"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>3</span><input id="mainSectionDepth3" type="number" step="0.1" /><input id="mainSectionPos3"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>4</span><input id="mainSectionDepth4" type="number" step="0.1" /><input id="mainSectionPos4"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>5</span><input id="mainSectionDepth5" type="number" step="0.1" /><input id="mainSectionPos5"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>6</span><input id="mainSectionDepth6" type="number" step="0.1" /><input id="mainSectionPos6"
+                      type="number" step="1" />
+                  </div>
+                </div>
+              </div>
+              <label class="field">
+                <span>Pujamen (mm) <span class="hint">(foot length)</span></span>
+                <div class="field-row">
+                  <input id="mainFootMm" type="number" step="1" />
+                  <input id="mainFootMmSlider" type="range" min="1000" max="2559" step="1" />
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Trimado: Controles Operativos -->
+          <div class="subsection">
+            <div class="subsection-title">Trimado (Controles)</div>
+            <div class="grid">
+              <label class="field">
+                <span>Cunningham/Pajarín (mm) <span class="hint">(tensión grátil)</span></span>
+                <div class="field-row">
+                  <input id="mainCunninghamMm" type="number" step="1" />
+                  <input id="mainCunninghamMmSlider" type="range" min="0" max="100" step="1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Escota Mayor: ángulo botavara (°) <span class="hint">(0=centrado)</span></span>
+                <div class="field-row">
+                  <input id="mainBoomAngleDeg" type="number" step="0.5" />
+                  <input id="mainBoomAngleDegSlider" type="range" min="0" max="90" step="0.5" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Escota Mayor: posición carro (mm) <span class="hint">(desde palo)</span></span>
+                <div class="field-row">
+                  <input id="mainSheetLeadYMm" type="number" step="1" />
+                  <input id="mainSheetLeadYMmSlider" type="range" min="1500" max="3000" step="10" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Trapa/Vang: ángulo boom vertical (°) <span class="hint">(0=horizontal)</span></span>
+                <div class="field-row">
+                  <input id="mainBoomTiltDeg" type="number" step="0.5" />
+                  <input id="mainBoomTiltDegSlider" type="range" min="-10" max="30" step="0.5" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Outhaul: desplazamiento puño (mm) <span class="hint">(a popa)</span></span>
+                <div class="field-row">
+                  <input id="mainOuthaulMm" type="number" step="1" />
+                  <input id="mainOuthaulMmSlider" type="range" min="-50" max="100" step="1" />
+                </div>
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- FOQUE -->
+        <fieldset class="sail-section">
+          <legend>
+            <label class="sail-toggle-inline">
+              <input id="jibEnabled" type="checkbox" />
+              <span>Foque</span>
+            </label>
+          </legend>
+
+          <!-- Velería: Diseño del Foque -->
+          <div class="subsection">
+            <div class="subsection-title">Velería (Forma)</div>
+            <div class="grid">
+              <label class="field">
+                <span>Res. Barra/Cuerda (malla) <span class="hint">(evitar >15x12 si cuelga)</span></span>
+                <div class="field-row">
+                  <input id="jibLuffSeg" type="number" step="1" min="2" max="40" title="Resolución Vertical" />
+                  <input id="jibChordSeg" type="number" step="1" min="2" max="40" title="Resolución Horizontal" />
+                </div>
+                <div class="field-row">
+                  <input id="jibLuffSegSlider" type="range" min="2" max="40" step="1" />
+                  <input id="jibChordSegSlider" type="range" min="2" max="40" step="1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Profundidad (%) <span class="hint">(draft)</span></span>
+                <div class="field-row">
+                  <input id="jibDraftPct" type="number" step="0.1" />
+                  <input id="jibDraftPctSlider" type="range" min="0" max="20" step="0.1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Posición draft (%) <span class="hint">(desde grátil)</span></span>
+                <div class="field-row">
+                  <input id="jibDraftPosPct" type="number" step="1" />
+                  <input id="jibDraftPosPctSlider" type="range" min="10" max="80" step="1" />
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Secciones de forma <span class="hint">(2-6)</span></span>
+                <div class="field-row">
+                  <input id="jibShapeSections" type="number" step="1" min="2" max="6" />
+                  <input id="jibShapeSectionsSlider" type="range" min="2" max="6" step="1" />
+                </div>
+              </label>
+              <div class="field field-compact">
+                <span>Forma por secciones</span>
+                <div class="section-grid">
+                  <div class="section-row header">
+                    <span>#</span><span>Profundidad %</span><span>Pos. draft %</span>
+                  </div>
+                  <div class="section-row">
+                    <span>1</span><input id="jibSectionDepth1" type="number" step="0.1" /><input id="jibSectionPos1"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>2</span><input id="jibSectionDepth2" type="number" step="0.1" /><input id="jibSectionPos2"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>3</span><input id="jibSectionDepth3" type="number" step="0.1" /><input id="jibSectionPos3"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>4</span><input id="jibSectionDepth4" type="number" step="0.1" /><input id="jibSectionPos4"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>5</span><input id="jibSectionDepth5" type="number" step="0.1" /><input id="jibSectionPos5"
+                      type="number" step="1" />
+                  </div>
+                  <div class="section-row">
+                    <span>6</span><input id="jibSectionDepth6" type="number" step="0.1" /><input id="jibSectionPos6"
+                      type="number" step="1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+          </div>
+
+          <!-- Trimado: Controles del Foque -->
+          <div class="subsection">
+            <div class="subsection-title">Trimado (Controles)</div>
+            <div class="grid">
+              <label class="field">
+                <span>Escota Foque: desplazamiento puño (mm) <span class="hint">(hacia carro)</span></span>
+                <div class="field-row">
+                  <input id="jibClewDisplaceMm" type="number" step="1" />
+                  <input id="jibClewDisplaceMmSlider" type="range" min="0" max="300" step="1" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Escota Foque: lado</span>
+                <select id="jibSheetSide">
+                  <option value="0">Centro (simétrico)</option>
+                  <option value="1">Babor</option>
+                  <option value="-1">Estribor</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Carro escota X (mm) <span class="hint">(desde crujía)</span></span>
+                <div class="field-row">
+                  <input id="jibSheetLeadXMm" type="number" step="1" />
+                  <input id="jibSheetLeadXMmSlider" type="range" min="0" max="600" step="5" />
+                </div>
+              </label>
+              <label class="field">
+                <span>Carro escota Y (mm) <span class="hint">(desde palo, negativo=popa)</span></span>
+                <div class="field-row">
+                  <input id="jibSheetLeadYMm" type="number" step="1" />
+                  <input id="jibSheetLeadYMmSlider" type="range" min="-2500" max="0" step="10" />
+                </div>
+              </label>
+            </div>
+          </div>
+        </fieldset>
+      </details>
+
+      <details>
+        <summary>Solver</summary>
+        <div class="grid">
+          <label>N mast segments<input id="mastSegments" type="number" step="1" min="6" max="200" value="100"
+              placeholder="100" /></label>
+          <label>Pretension steps<input id="pretensionSteps" type="number" step="1" min="1" max="30" /></label>
+          <label>Load steps<input id="loadSteps" type="number" step="1" min="1" max="30" /></label>
+          <label>Max iters<input id="maxIters" type="number" step="1" min="10" max="500" /></label>
+          <label>Tol (N)<input id="tol" type="number" step="0.1" /></label>
+          <label>Cable Îµ (compression)<input id="cableEps" type="number" step="1e-6" /></label>
+          <label>Sail damping (inicial)<input id="sailDamping" type="number" step="0.001" min="0" max="1" /></label>
+          <label>Sail damping decay<input id="sailDampingDecay" type="number" step="0.01" min="0.5"
+              max="0.99" /></label>
+        </div>
+      </details>
+    </section>
+
+    <div id="colResizer" class="colResizer" role="separator" aria-orientation="vertical"
+      aria-label="Ajustar ancho de la columna" title="Arrastra para ajustar el ancho"></div>
+
+    <section class="results">
+      <h2>Resultados</h2>
+      <div class="viz-grid">
+        <div class="rig3d">
+          <div class="rig3dHeader">
+            <div>
+              <div class="rig3dTitle">Vista 3D de la jarcia</div>
+              <div class="rig3dSubtitle">Interactiva: Orbita, Zoom y POVs</div>
+            </div>
+            <div class="rigLegend">
+              <span class="chip chipRelaxed">Relajado</span>
+              <span class="chip chipPrebend">Prebend</span>
+              <span class="chip chipLoaded">Cargado</span>
+              <span class="chip chipStay">Jarcia</span>
+            </div>
+          </div>
+
+          <div class="rig3dCanvasWrap">
+            <canvas id="rig3dCanvas" width="800" height="500"></canvas>
+            <div id="rig3dStatus" class="rig3dStatus">Cargando visor 3D...</div>
+
+            <div id="rigForcesOverlay" class="rigForcesOverlay" aria-label="Fuerzas de jarcia"></div>
+
+            <div class="pov-controls">
+              <button class="pov-btn" data-pov="side">Side</button>
+              <button class="pov-btn" data-pov="front">Front</button>
+              <button class="pov-btn" data-pov="top">Top</button>
+              <button class="pov-btn" data-pov="iso">Iso</button>
+              <div class="v-sep"></div>
+              <button class="pov-btn" data-zoom="in">+</button>
+              <button class="pov-btn" data-zoom="out">−</button>
+              <button class="pov-btn" data-zoom="reset">↺</button>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div class="plots-column">
+          <div class="plotCard">
+            <div class="plotTitle">Desviación Lateral (X-Z)</div>
+            <canvas id="plotXZ" width="400" height="400"></canvas>
+          </div>
+          <div class="plotCard">
+            <div class="plotTitle">Cajera / Prebend (Y-Z)</div>
+            <canvas id="plotYZ" width="400" height="400"></canvas>
+          </div>
+          <div class="plotCard">
+            <div class="plotTitle">Convergencia del Solver</div>
+            <canvas id="plotConvergence" width="400" height="200"></canvas>
+            <div id="plotConvergenceLegend" class="plotLegend"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-header">
+        <h2>Resultados del Análisis</h2>
+        <div id="simulationTime" class="time-badge"></div>
+      </div>
+
+      <div class="results-layout">
+        <div class="result-column">
+          <div class="result-card" id="card-convergence">
+            <div class="res-card-header">
+              <span class="res-icon">🎯</span>
+              <span class="res-title">Convergencia</span>
+              <span id="converged-status" class="status-badge">---</span>
+            </div>
+            <div class="res-content">
+              <div class="res-item">
+                <span class="res-label">Iteraciones</span>
+                <span id="res-iters" class="res-value">--</span>
+              </div>
+              <div class="res-item">
+                <span class="res-label">Energía Final</span>
+                <span id="res-energy" class="res-value">--</span>
+              </div>
+              <div id="converge-warnings" class="warnings-list"></div>
+            </div>
+          </div>
+
+          <div class="result-card" id="card-tensions">
+            <div class="res-card-header">
+              <span class="res-icon">⚓</span>
+              <span class="res-title">Tensiones Jarcia</span>
+            </div>
+            <div class="res-content">
+              <div class="res-item">
+                <span class="res-label">Obenque Babor</span>
+                <div style="display: flex; align-items: center;">
+                  <span id="res-shroud-port" class="res-value">--</span>
+                  <span class="slack-flag" id="flag-shroud-port" hidden>FLOJO</span>
+                </div>
+              </div>
+              <div class="res-item">
+                <span class="res-label">Obenque Estribor</span>
+                <div style="display: flex; align-items: center;">
+                  <span id="res-shroud-stbd" class="res-value">--</span>
+                  <span class="slack-flag" id="flag-shroud-stbd" hidden>FLOJO</span>
+                </div>
+              </div>
+              <div class="res-item">
+                <span class="res-label">Driza / Forestay</span>
+                <div style="display: flex; align-items: center;">
+                  <span id="res-stay" class="res-value">--</span>
+                  <span class="slack-flag" id="flag-stay" hidden>FLOJO</span>
+                </div>
+              </div>
+              <div class="res-divider"></div>
+              <div class="res-item">
+                <span class="res-label">Base Palo (Reacción Z)</span>
+                <span id="res-base-rz-duplicate" class="res-value">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-column">
+          <div class="result-card" id="card-spreader">
+            <div class="res-card-header">
+              <span class="res-icon">📏</span>
+              <span class="res-title">Crucetas (Spreaders)</span>
+            </div>
+            <div class="res-content">
+              <div class="res-group">
+                <div class="res-item">
+                  <span class="res-label">Punta a Punta</span>
+                  <span id="res-tip-tip" class="res-value">--</span>
+                </div>
+                <div class="res-item">
+                  <span class="res-label">Flecha (Deflexión)</span>
+                  <span id="res-flecha" class="res-value">--</span>
+                </div>
+              </div>
+              <div class="res-divider"></div>
+              <div class="res-item">
+                <span class="res-label">Compresión Babor</span>
+                <span id="res-axial-port" class="res-value">--</span>
+              </div>
+              <div class="res-item">
+                <span class="res-label">Compresión Estribor</span>
+                <span id="res-axial-stbd" class="res-value">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-column wide">
+          <div class="result-card" id="card-equilibrium">
+            <div class="res-card-header">
+              <span class="res-icon">⚖️</span>
+              <span class="res-title">Equilibrio Global</span>
+              <span id="equilibrium-status" class="status-badge">---</span>
+            </div>
+            <div class="res-content eq-grid">
+              <div class="eq-section">
+                <div class="eq-section-title">Cargas Viento</div>
+                <div class="res-item"><span class="res-label">Lateral (Fx)</span><span id="res-ext-fx"
+                    class="res-value">--</span></div>
+                <div class="res-item"><span class="res-label">Proa/Popa (Fy)</span><span id="res-ext-fy"
+                    class="res-value">--</span></div>
+              </div>
+              <div class="eq-section">
+                <div class="eq-section-title">Reacciones Base</div>
+                <div class="res-item"><span class="res-label">Pie Palo (Rz)</span><span id="res-base-rz"
+                    class="res-value">--</span></div>
+                <div class="res-item"><span class="res-label">Fogonadura (Fx)</span><span id="res-partners-fx"
+                    class="res-value">--</span></div>
+              </div>
+              <div class="eq-section full">
+                <div class="eq-section-title">Balance de Fuerzas (Residuales)</div>
+                <div class="balance-row">
+                  <div class="res-item"><span class="res-label">ΣFx</span><span id="res-sum-fx"
+                      class="res-value">--</span></div>
+                  <div class="res-item"><span class="res-label">ΣFy</span><span id="res-sum-fy"
+                      class="res-value">--</span></div>
+                  <div class="res-item"><span class="res-label">|ΣF|</span><span id="res-sum-mag"
+                      class="res-value">--</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details id="debugDetails" class="debugDetails">
+        <summary class="debugSummary">
+          <span class="debugSummaryTitle">Convergencia y Debug (opcional)</span>
+          <span class="debugSummaryBadges">
+            <span id="converged-status-summary" class="status-badge">---</span>
+            <span id="simulationTimeSummary" class="time-badge"></span>
+          </span>
+        </summary>
+        <div class="debugContent">
+          <div class="debugLayout">
+            <div id="debugLeft" class="debugColumn"></div>
+            <div id="debugRight" class="debugColumn"></div>
+          </div>
+          <div class="debugExtra">
+            <div class="result-card" id="card-convergence-table">
+              <div class="res-card-header">
+                <span class="res-icon">📊</span>
+                <span class="res-title">Iteraciones (DOF máximo)</span>
+              </div>
+              <div class="res-content">
+                <div class="tableWrap">
+                  <table class="convTable">
+                    <thead>
+                      <tr>
+                        <th>Iter</th>
+                        <th>Residual</th>
+                        <th>Max DOF</th>
+                      </tr>
+                    </thead>
+                    <tbody id="convergenceTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Keep hidden hidden for backward compatibility or legacy debugging if needed -->
+      <div style="display:none">
+        <pre id="solverOut"></pre>
+        <pre id="tensionsOut"></pre>
+        <pre id="spreaderOut"></pre>
+        <pre id="equilibriumOut"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="./renderer.js"></script>
+</body>
+
+</html>
