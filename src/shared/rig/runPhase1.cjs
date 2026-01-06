@@ -40,7 +40,10 @@ function validatePayload(payload) {
   for (const key of requiredControls) assertFiniteNumber(controls[key], `controls.${key}`);
 
   for (const [k, v] of Object.entries(geometry)) assertFiniteNumber(v, `geometry.${k}`);
-  for (const [k, v] of Object.entries(controls)) assertFiniteNumber(v, `controls.${k}`);
+  for (const [k, v] of Object.entries(controls)) {
+    if (k === "lockStayLength") continue;
+    assertFiniteNumber(v, `controls.${k}`);
+  }
   for (const [k, v] of Object.entries(solver)) {
     if (k === "mastSegments" || k.endsWith("Steps") || k.endsWith("Iterations")) {
       if (!Number.isInteger(v)) throw new Error(`Invalid solver.${k}: ${v}`);
@@ -402,7 +405,8 @@ function runContinuationPhase({
       converged: solved.converged,
       iterations: solved.iterations,
       gradInf: solved.gradInf,
-      reason: solved.reason ?? null
+      reason: solved.reason ?? null,
+      convergenceHistory: solved.convergenceHistory
     });
 
     if (solved.converged) {

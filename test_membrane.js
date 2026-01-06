@@ -1,6 +1,15 @@
 const { runPhase1Simulation } = require('./src/shared/rig/runPhase1.cjs');
+const fs = require('fs');
 
 async function test() {
+    const logFile = 'test_output.txt';
+    const log = (msg) => {
+        fs.appendFileSync(logFile, msg + '\n');
+        console.log(msg);
+    };
+
+    if (fs.existsSync(logFile)) fs.unlinkSync(logFile);
+
     try {
         const payload = {
             geometry: {
@@ -10,52 +19,47 @@ async function test() {
             controls: {
                 spreaderLengthM: 0.415, spreaderSweepAftM: 0.1, shroudBaseDeltaM: 0,
                 shroudDeltaL0PortM: 0, shroudDeltaL0StbdM: 0, jibHalyardTensionN: 1000,
-                partnersKx: 25000, partnersKy: 25000
+                partnersKx: 25000, partnersKy: 25000,
+                lockStayLength: true
             },
             load: { mode: "upwind", qLateralNpm: 45, qProfile: "triangular" },
             solver: {
-                mastSegments: 50, pretensionSteps: 2, loadSteps: 2,
-                maxIterations: 200, toleranceN: 10.0, cableCompressionEps: 1e-3,
-                sailDamping: 5.0, sailDampingDecay: 0.95
+                mastSegments: 50, pretensionSteps: 1, loadSteps: 1,
+                maxIterations: 100, toleranceN: 1.0, cableCompressionEps: 1e-6,
+                sailDamping: 5.0, sailDampingDecay: 0.95,
+                drTimeStep: 0.002
             },
             sails: {
-                enabled: true, windPressurePa: 80, windSign: 1,
-                main: {
-                    enabled: true, draftDepth: 0.08, draftPos: 0.4,
-                    luffLengthM: 5.1, footLengthM: 2.5,
-                    mesh: { luffSegments: 4, chordSegments: 3 }
-                },
-                jib: {
-                    enabled: true, draftDepth: 0.07, draftPos: 0.35,
-                    luffLengthM: 4.5, footLengthM: 2.1,
-                    mesh: { luffSegments: 4, chordSegments: 3 }
-                }
+                enabled: false, windPressurePa: 0, windSign: 1
             }
         };
 
-        console.time("Simulation");
-        const res = await runPhase1Simulation(payload);
-        console.timeEnd("Simulation");
-        console.log("Converged:", res.converged);
-        console.log("Solver used:", res.solver || "newton");
-        if (res.gradInf) console.log("Final Gradient Norm:", res.gradInf.toFixed(4));
-        if (res.reason) console.log("Exit reason:", res.reason);
+        log("Starting Simulation...");
+        const res = runPhase1Simulation(payload);
+        log("Simulation finished. Converged: " + res.converged);
 
-        if (res.outputs.sails?.loaded?.main) {
-            console.log("Main Sail Grid:", res.outputs.sails.loaded.main.length, "x", res.outputs.sails.loaded.main[0].length);
-        } else {
-            console.log("Sails disabled or no output");
+        if (res.convergenceHistory && res.convergenceHistory.length > 0) {
+            log("\n--- Convergence History (Last 5) ---");
+            const hist = res.convergenceHistory;
+            for (let i = Math.max(0, hist.length - 5); i < hist.length; i++) {
+                const h = hist[i];
+                let mStr = "";
+                if (h.membranes) {
+                    mStr = ` | Stress: ${h.membranes.maxPrincipalStress?.toExponential(2)} | Taut: ${h.membranes.tautCount}/${h.membranes.elementCount}`;
+                }
+                log(`Iter ${h.iter}: GradInf=${h.residual.toExponential(2)} | Energy=${h.energy.toExponential(2)}${mStr}`);
+            }
         }
 
-        if (res.diagnostics.convergenceHistory && res.diagnostics.convergenceHistory.length > 0) {
-            console.log("Convergence History (first 1):");
-            console.log(JSON.stringify(res.diagnostics.convergenceHistory[0]));
-            console.log("Convergence History (last 3):");
-            console.log(res.diagnostics.convergenceHistory.slice(-3));
+        if (res.outputs && res.outputs.tensions) {
+            log("\n--- Final Tensions ---");
+            log(`Stay: ${res.outputs.tensions.forestayN.toFixed(1)} N (Locked at ~1000 N, now subject to load)`);
+            log(`Shroud Port: ${res.outputs.tensions.shroudPortN.toFixed(1)} N`);
+            log(`Shroud Stbd: ${res.outputs.tensions.shroudStbdN.toFixed(1)} N`);
         }
     } catch (e) {
-        console.error("ERROR:", e.message);
-        process.exit(1);
+        log("ERROR: " + e.message);
+        if (e.stack) log(e.stack);
     }
 }
 

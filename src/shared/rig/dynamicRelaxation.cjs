@@ -148,98 +148,91 @@ function solveDynamicRelaxationAdaptive(computeForces, x0, options = {}) {
 
     const x = x0.slice();
     const v = zeros(n);
-    const a = zeros(n);  // Aceleraciones
-
-    // Masas adaptativas (se ajustan durante la simulación)
     const m = new Array(n).fill(1.0);
 
-    let prevKE = 0;
     let peakCount = 0;
-    let dt = dtBase;
+
 
     const history = [];
     let forces = computeForces(x);
     let grad = forces.grad;
 
-    const gInf0 = normInf(grad);
-    // console.log("DR Start:", { energy: forces.energy, gInf: gInf0 });
-
-    // Estimar masas basándose en gradiente inicial o valor mínimo seguro
-    // Para elementos muy rígidos (mástil), necesitamos masas mayores
-    const massBase = Math.max(10, gInf0 / n);
+    const massValue = options.fixedMass ?? 10.0;
     for (let i = 0; i < n; i++) {
-        m[i] = Math.max(1.0, Math.abs(grad[i]) / (gInf0 + 1e-9) * massBase);
+        m[i] = options.fixedMasses ? options.fixedMasses[i] : massValue;
     }
+    let dt = dtBase;
 
     for (let iter = 0; iter < maxIter; iter++) {
-        // Energía cinética
-        let KE = 0;
-        for (let i = 0; i < n; i++) {
-            KE += 0.5 * m[i] * v[i] * v[i];
-        }
-
         const gInf = normInf(grad);
 
-        if (iter % 100 === 0) {
-            history.push({ iter, residual: gInf, energy: forces.energy, KE, peaks: peakCount, dt });
+        if (options.debug && iter < 50) {
+            const vMax = normInf(v);
+            const xMax = normInf(x);
+            console.log(`DR[${iter}] Res=${gInf.toExponential(3)}, vMax=${vMax.toExponential(3)}, xMax=${xMax.toExponential(3)}`);
+        }
+
+        // Registro de historia
+        if (iter % 100 === 0 || iter < 20) {
+            let KE = 0;
+            for (let i = 0; i < n; i++) KE += 0.5 * m[i] * v[i] * v[i];
+
+            history.push({
+                iter,
+                residual: gInf,
+                energy: forces.energy,
+                KE,
+                peaks: peakCount,
+                dt,
+                metrics: forces.metrics || {} // Nuevas métricas de membrana
+            });
+            if (!Number.isFinite(gInf)) break;
         }
 
         if (gInf < tol) {
-            return {
-                x,
-                converged: true,
-                iterations: iter,
-                gradInf: gInf,
-                energy: forces.energy,
-                history,
-                reason: "converged"
-            };
+            return { x, converged: true, iterations: iter, gradInf: gInf, energy: forces.energy, history, reason: "converged", solver: "dynamic_relaxation" };
         }
 
-        // Kinetic damping con hysteresis
-        if (KE > prevKE * 1.01 && iter > 20) {
-            for (let i = 0; i < n; i++) v[i] = 0;
+        // Kinetic damping (Power check)
+        let power = 0;
+        for (let i = 0; i < n; i++) power += -grad[i] * v[i];
+
+        // Warm-up: No permitir acelerar dt todavía si estamos en el inicio
+        const isWarmingUp = iter < 200;
+
+        if (power < 0 && iter > 5) {
+            // Peak detectado: Reiniciar velocidades
+            for (let i = 0; i < n; i++) {
+                // Opcional: Retroceder a la posición del peak
+                x[i] -= 0.5 * v[i] * dt;
+                v[i] = 0;
+            }
             peakCount++;
-            prevKE = 0;
-            dt = Math.max(dtBase * 0.5, dt * 0.9);  // Reducir dt después de peak
+            forces = computeForces(x);
+            grad = forces.grad;
+            dt = Math.max(dtBase * 0.1, dt * 0.5);
         } else {
-            prevKE = KE;
-            dt = Math.min(dtBase * 2, dt * 1.01);  // Aumentar dt gradualmente
+            // Aceleración suave
+            if (!isWarmingUp) {
+                dt = Math.min(dtBase * 5, dt * 1.01);
+            }
         }
 
-        // Leapfrog integration (más estable que Euler)
-        // v(t+dt/2) = v(t-dt/2) + a(t) * dt
-        // x(t+dt) = x(t) + v(t+dt/2) * dt
+        // Symplectic Euler
         for (let i = 0; i < n; i++) {
-            a[i] = -grad[i] / m[i];
-            v[i] += a[i] * dt;
+            v[i] += (-grad[i] / m[i]) * dt;
             x[i] += v[i] * dt;
         }
 
         forces = computeForces(x);
         grad = forces.grad;
 
-        if (!Number.isFinite(forces.energy)) {
-            return {
-                x,
-                converged: false,
-                iterations: iter,
-                gradInf: gInf,
-                history,
-                reason: "nan_detected"
-            };
+        if (!Number.isFinite(forces.energy) || !Number.isFinite(normInf(grad))) {
+            return { x, converged: false, iterations: iter, gradInf: gInf, history, reason: "nan_detected", solver: "dynamic_relaxation" };
         }
     }
 
-    return {
-        x,
-        converged: false,
-        iterations: maxIter,
-        gradInf: normInf(grad),
-        energy: forces.energy,
-        history,
-        reason: "max_iter"
-    };
+    return { x, converged: false, iterations: maxIter, gradInf: normInf(grad), energy: forces.energy, history, reason: "max_iter", solver: "dynamic_relaxation" };
 }
 
 module.exports = {

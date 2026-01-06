@@ -108,7 +108,9 @@ function det2(M) {
  */
 function inv2(M) {
   const d = det2(M);
-  if (Math.abs(d) < 1e-15) return [[1, 0], [0, 1]]; // Singular
+  // Un determinante de 1e-12 significa un triángulo muy deformado o pequeño.
+  // Es mejor ignorarlo que producir fuerzas astronómicas.
+  if (Math.abs(d) < 1e-12) return [[1, 0], [0, 1]];
   return [
     [M[1][1] / d, -M[0][1] / d],
     [-M[1][0] / d, M[0][0] / d]
@@ -466,25 +468,14 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
     fl[0] * e1[2] + fl[1] * e2[2]
   ]);
 
-  // Ensamblar en gradiente global
-  const nDof = dofMap.nDof;
-  const grad = new Array(nDof).fill(0);
+  const nodeIds = [i, j, k];
+  /* targetGrad removed to avoid double counting - assembleSystem handles accumulation */
 
   // Matriz de rigidez del elemento (9x9)
   const Ke = computeCstStiffness(elem, S_tensor, dNdX, area, e1, e2, stiffnessFactor);
 
-  const nodeIds = [i, j, k];
-  for (let a = 0; a < 3; a++) {
-    const base = dofMap.map.get(nodeIds[a]);
-    if (base === undefined) continue;
-    grad[base] += fGlobal[a][0];
-    grad[base + 1] += fGlobal[a][1];
-    grad[base + 2] += fGlobal[a][2];
-  }
-
   return {
     energy,
-    grad,
     Ke,
     nodeIds,
     forces: fGlobal,
@@ -696,6 +687,14 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
   const totalGrad = new Array(nDof).fill(0);
   const stressData = [];
 
+  // DEBUG: log first call
+  const isFirstCall = !totalMembraneEnergyAndGrad.called;
+  totalMembraneEnergyAndGrad.called = true;
+  if (isFirstCall) {
+    console.log(`totalMembraneEnergyAndGrad: first call, elements=${elements.length}, nDof=${nDof}`);
+  }
+
+
   // Métricas para monitoreo de convergencia
   let maxStress = 0;
   let minStress = Infinity;
@@ -703,21 +702,39 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
   let wrinkledCount = 0;
   let slackCount = 0;
 
-  for (let i = 0; i < elements.length; i++) { // Added index `i` for logging
+  /* skip targetGrad setting */
+
+  for (let i = 0; i < elements.length; i++) {
     const elem = elements[i];
     const res = membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap);
     totalEnergy += res.energy;
 
-    // Debug: catch explosive forces
-    const gn = normInf(res.grad);
-    if (gn > 1e15) {
-      console.warn(`EXPLOSIVE MEMBRANE ELEMENT detected! Index: ${i}, nodeIds: ${elem.nodeIds}, gradNorm: ${gn}`);
-      // Skip it to avoid poisoning the whole system for now
-      continue;
+    if (isFirstCall && i < 2) {
+      console.log(`  Elem ${i}: area=${res.area.toFixed(6)}, forcesMax=${normInf(res.forces.flat()).toFixed(6)}`);
     }
 
-    for (let j = 0; j < nDof; j++) { // Corrected loop variable and array name
-      totalGrad[j] += res.grad[j];
+    // Debug: catch explosive forces (después de acumular, para ver magnitud real)
+    const gn = normInf(res.forces.flat());
+    if (gn > 1e12 || !Number.isFinite(gn)) {
+      const info = computeDeformationGradient(elem, nodesRef, nodesCur);
+      const fs = require('fs');
+      const dump = {
+        index: i,
+        nodeIds: elem.nodeIds,
+        nodesRef: elem.nodeIds.map(id => nodesRef[id]),
+        nodesCur: elem.nodeIds.map(id => nodesCur[id]),
+        forces: res.forces,
+        forcesMax: gn,
+        area: res.area,
+        Dm: info.Dm,
+        Ds: info.Ds,
+        DmInv: info.DmInv,
+        F: info.F,
+        elem: { E: elem.E, nu: elem.nu, thickness: elem.thickness, prestress: elem.prestress }
+      };
+      fs.writeFileSync('debug_explosion.json', JSON.stringify(dump, null, 2));
+      console.error(`FATAL: EXPLOSIVE MEMBRANE ELEMENT detected! Index: ${i}. More info in debug_explosion.json`);
+      throw new Error(`Numerical explosion in membrane element ${i} (nodes ${elem.nodeIds})`);
     }
 
     stressData.push({
@@ -726,15 +743,27 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
       forces: res.forces
     });
 
+    // Acumular en gradiente global
+    for (let a = 0; a < 3; a++) {
+      const base = dofMap.map.get(res.nodeIds[a]);
+      if (base === undefined) continue;
+      totalGrad[base] += res.forces[a][0];
+      totalGrad[base + 1] += res.forces[a][1];
+      totalGrad[base + 2] += res.forces[a][2];
+    }
+
     // Actualizar métricas
     const [s1, s2] = res.principalStresses;
     maxStress = Math.max(maxStress, s1);
-    minStress = Math.min(minStress, s2);
+    minStress = Math.min(minStress, s2 === -Infinity ? s1 : Math.min(minStress, s2));
 
     if (res.wrinklingState === MEMBRANE_STATE.TAUT) tautCount++;
     else if (res.wrinklingState === MEMBRANE_STATE.WRINKLED) wrinkledCount++;
     else slackCount++;
   }
+
+  if (dofMap && dofMap.targetGrad) dofMap.targetGrad = undefined;
+  console.log("DEBUG: totalMembraneEnergyAndGrad finishing. Keys:", Object.keys(dofMap));
 
   return {
     energy: totalEnergy,
@@ -742,11 +771,11 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
     stressData,
     metrics: {
       maxPrincipalStress: maxStress,
-      minPrincipalStress: minStress,
-      elementsTotal: elements.length,
-      elementsTaut: tautCount,
-      elementsWrinkled: wrinkledCount,
-      elementsSlack: slackCount
+      minPrincipalStress: minStress === Infinity ? 0 : minStress,
+      tautCount,
+      wrinkledCount,
+      slackCount,
+      elementCount: elements.length
     }
   };
 }

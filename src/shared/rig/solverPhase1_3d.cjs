@@ -178,7 +178,11 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
   const nodesPos = new Array(model.nodes.length);
   for (const node of model.nodes) {
     const [ux, uy, uz] = getU3(node.id, dofMap, x);
-    nodesPos[node.id] = [node.p0[0] + ux, node.p0[1] + uy, node.p0[2] + uz];
+    const p = [node.p0[0] + ux, node.p0[1] + uy, node.p0[2] + uz];
+    if (!Number.isFinite(p[0]) || !Number.isFinite(p[1]) || !Number.isFinite(p[2])) {
+      // console.warn(`NaN detected in node ${node.id} (${node.name}) pos`);
+    }
+    nodesPos[node.id] = p;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -512,61 +516,31 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
   // ═══════════════════════════════════════════════════════════════════
   // ELEMENTOS DE MEMBRANA (Velas)
   // ═══════════════════════════════════════════════════════════════════
+  let membraneResult = null;
   let membranePressureForces = null;
-  if (model.membranes && model.membranes.length > 0) {
-    // Posiciones de referencia (p0) y actuales
-    const nodesRef = model.nodes.map(node => node.p0);
+  try {
+    if (model.membranes && model.membranes.length > 0) {
+      // Posiciones de referencia (p0) y actuales
+      const nodesRef = model.nodes.map(node => node.p0);
 
-    // Energía y gradiente de deformación de membrana
-    const memResult = totalMembraneEnergyAndGrad(
-      model.membranes,
-      nodesRef,
-      nodesPos,
-      dofMap
-    );
-    energyInternal += memResult.energy;
-    for (let i = 0; i < n; i++) {
-      grad[i] += memResult.grad[i];
-    }
-
-    if (!skipK) {
-      for (const d of memResult.stressData) {
-        const ids = d.nodeIds;
-        if (!d.Ke || !ids) continue;
-        for (let a = 0; a < 3; a++) {
-          for (let b = 0; b < 3; b++) {
-            const rowBase = dofMap.map.get(ids[a]);
-            const colBase = dofMap.map.get(ids[b]);
-            if (rowBase === undefined || colBase === undefined) continue;
-            for (let i = 0; i < 3; i++) {
-              for (let j = 0; j < 3; j++) {
-                K[rowBase + i][colBase + j] += d.Ke[a * 3 + i][b * 3 + j];
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Presión sobre membranas (follower load)
-    if (model.membranePressure && Math.abs(model.membranePressure.value) > 1e-12) {
-      const pressResult = totalMembranePressure(
+      // Energía y gradiente de deformación de membrana
+      if (!dofMap || !dofMap.map) console.error("DEBUG: dofMap.map is GONE BEFORE totalMembraneEnergyAndGrad!");
+      membraneResult = totalMembraneEnergyAndGrad(
         model.membranes,
+        nodesRef,
         nodesPos,
-        model.membranePressure.value,
-        dofMap,
-        model.membranePressure.sign ?? 1
+        dofMap
       );
-      workExternal += pressResult.work;
+      if (!dofMap || !dofMap.map) console.error("DEBUG: dofMap.map is GONE AFTER totalMembraneEnergyAndGrad!");
+      energyInternal += membraneResult.energy;
       for (let i = 0; i < n; i++) {
-        grad[i] += pressResult.grad[i];
+        grad[i] += membraneResult.grad[i];
       }
-      membranePressureForces = pressResult.nodalForces ?? null;
 
       if (!skipK) {
-        for (const d of pressResult.pressStiffnessData || []) {
+        for (const d of membraneResult.stressData) {
           const ids = d.nodeIds;
-          if (!d.Kp || !ids) continue;
+          if (!d.Ke || !ids) continue;
           for (let a = 0; a < 3; a++) {
             for (let b = 0; b < 3; b++) {
               const rowBase = dofMap.map.get(ids[a]);
@@ -574,7 +548,49 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
               if (rowBase === undefined || colBase === undefined) continue;
               for (let i = 0; i < 3; i++) {
                 for (let j = 0; j < 3; j++) {
-                  K[rowBase + i][colBase + j] += d.Kp[a * 3 + i][b * 3 + j];
+                  K[rowBase + i][colBase + j] += d.Ke[a * 3 + i][b * 3 + j];
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Presión sobre membranas (follower load)
+      if (model.membranePressure && Math.abs(model.membranePressure.value) > 1e-12) {
+        const pressResult = totalMembranePressure(
+          model.membranes,
+          nodesPos,
+          model.membranePressure.value,
+          dofMap,
+          model.membranePressure.sign ?? 1
+        );
+        workExternal += pressResult.work;
+        for (let i = 0; i < n; i++) {
+          grad[i] += pressResult.grad[i];
+        }
+        membranePressureForces = pressResult.nodalForces ?? null;
+
+        if (!skipK) {
+          if (!dofMap || !dofMap.map) {
+            console.error("DEBUG: dofMap or dofMap.map is MISSING in assembleSystem!", { skipK, hasMap: !!(dofMap && dofMap.map) });
+          }
+          for (const d of pressResult.pressStiffnessData || []) {
+            const ids = d.nodeIds;
+            if (!d.Kp || !ids) continue;
+            for (let a = 0; a < 3; a++) {
+              for (let b = 0; b < 3; b++) {
+                if (!dofMap.map) {
+                  console.error("FATAL: dofMap.map disappeared at a=" + a + ", b=" + b);
+                  continue;
+                }
+                const rowBase = map.get(ids[a]);
+                const colBase = map.get(ids[b]);
+                if (rowBase === undefined || colBase === undefined) continue;
+                for (let i = 0; i < 3; i++) {
+                  for (let j = 0; j < 3; j++) {
+                    K[rowBase + i][colBase + j] += d.Kp[a * 3 + i][b * 3 + j];
+                  }
                 }
               }
             }
@@ -582,6 +598,11 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
         }
       }
     }
+  } catch (err) {
+    console.error("CRITICAL ERROR in assembleSystem (Membrane section):", err.message);
+    console.error("Stack:", err.stack);
+    console.error("skipK:", skipK, "nDof:", n);
+    throw err;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -619,7 +640,16 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
     energy,
     grad,
     K,
-    meta: { axialForces, slackCables, nodesPos, reactions, springsForces, membranePressureForces }
+    membraneMetrics: membraneResult?.metrics,
+    meta: {
+      axialForces,
+      slackCables,
+      nodesPos,
+      reactions,
+      springsForces,
+      membranePressureForces,
+      membranes: { metrics: membraneResult?.metrics }
+    }
   };
 }
 
@@ -632,40 +662,105 @@ function solveEquilibrium3d({ model, solver, x0 }) {
   const maxIt = solver.maxIterations || 300;
   const eps = solver.cableCompressionEps ?? 1e-6;
 
+  // SANITY CHECK: Verificar integridad del modelo antes de empezar
+  for (const node of model.nodes) {
+    if (!node.p0.every(Number.isFinite)) {
+      console.error(`FATAL: Node ${node.id} (${node.name}) has non-finite p0: ${node.p0}`);
+      throw new Error(`Invalid model: Node ${node.id} is corrupt`);
+    }
+  }
+
+  // VERIFICAR x0 inicial
+  for (let i = 0; i < x.length; i++) {
+    if (!Number.isFinite(x[i])) {
+      console.error(`FATAL: solveEquilibrium3d started with NaN at DOF ${i}. Resetting to 0.`);
+      x[i] = 0;
+    }
+  }
+
+  const sysInitial = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: true });
+  const gradMax0 = normInf(sysInitial.grad);
+  console.log(`DEBUG: Initial state: Energy=${sysInitial.energy.toExponential(4)}, GradMax=${gradMax0.toExponential(4)}, xNorm=${normInf(x).toExponential(4)}`);
+
+  if (gradMax0 > 1e10) {
+    let maxIdx = 0;
+    let maxVal = 0;
+    for (let i = 0; i < sysInitial.grad.length; i++) {
+      if (Math.abs(sysInitial.grad[i]) > maxVal) {
+        maxVal = Math.abs(sysInitial.grad[i]);
+        maxIdx = i;
+      }
+    }
+    console.warn(`WARNING: High GradMax detected at DOF ${maxIdx} (value: ${maxVal.toExponential(2)})`);
+    // Encontrar el nodo correspondiente
+    for (const [nodeId, base] of dofMap.map.entries()) {
+      if (maxIdx >= base && maxIdx < base + 3) {
+        const node = model.nodes[nodeId];
+        console.warn(`  Node: ${node.id} (${node.name}), p0: ${node.p0}`);
+        break;
+      }
+    }
+  }
+
+
   // Detectar si hay membranas y usar Dynamic Relaxation
   const hasMembranes = model.membranes && model.membranes.length > 0;
   const useDR = solver.useDynamicRelaxation ?? hasMembranes;
 
-  console.log("DEBUG Solver selection:", { hasMembranes, useDR, membranes: model.membranes?.length });
-
-
   if (useDR && hasMembranes) {
     // DYNAMIC RELAXATION - O(n) por iteración, ideal para membranas
+    const dt = solver.drTimeStep || 0.002;
+
+    // Fase de pre-calculo: Estimar masas basadas en Gerschgorin
+    // Para estabilidad, necesitamos m_i > 0.25 * dt^2 * lambda_max(K)
+    // Usamos sum(|K_ij|) como cota superior de lambda_max.
+    const sys0 = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: false });
+    const nDof = dofMap.nDof;
+    const m = new Array(nDof).fill(0);
+    const safety = 2.0;
+
+    for (let i = 0; i < nDof; i++) {
+      let sumK = 0;
+      for (let j = 0; j < nDof; j++) {
+        const val = sys0.K[i][j];
+        if (Number.isFinite(val)) sumK += Math.abs(val);
+      }
+      // m_i = safety * 0.25 * dt^2 * k_ii
+      let mi = safety * 0.25 * dt * dt * sumK;
+      m[i] = (Number.isFinite(mi) && mi > 1.0) ? mi : 1.0;
+    }
+
     const computeForces = (xCurrent) => {
-      const assembled = assembleSystem({ model, dofMap, x: xCurrent, cableCompressionEps: eps, skipK: true });
-      return { grad: assembled.grad, energy: assembled.energy, meta: assembled.meta };
+      const sys = assembleSystem({ model, dofMap, x: xCurrent, cableCompressionEps: eps, skipK: true });
+      return {
+        energy: sys.energy,
+        grad: sys.grad,
+        metrics: sys.meta?.membranes?.metrics // Propagar métricas al DR
+      };
     };
+
+    console.log(`DEBUG: Starting DR. dt=${dt}, mRange=[${Math.min(...m).toExponential(2)}, ${Math.max(...m).toExponential(2)}]`);
 
     const drResult = solveDynamicRelaxationAdaptive(computeForces, x, {
       maxIter: maxIt * 20,
       tol: tol,
-      dt: 0.0005
+      dt: dt,
+      fixedMasses: m,  // Pasar las masas precalculadas
+      debug: true      // Habilitar logs en los primeros pasos
     });
 
     // Ensamblar una última vez con K para metadata/reacciones si es necesario
-    const finalAssembled = assembleSystem({ model, dofMap, x: drResult.x, cableCompressionEps: eps });
-
+    const lastResult = assembleSystem({ model, dofMap, x: drResult.x, cableCompressionEps: eps, skipK: false });
     return {
       x: drResult.x,
       converged: drResult.converged,
       iterations: drResult.iterations,
-      energy: drResult.energy,
       gradInf: drResult.gradInf,
-      meta: finalAssembled.meta,
-      model,
-      convergenceHistory: drResult.history,
+      energy: lastResult.energy,
+      reason: drResult.reason,
       solver: "dynamic_relaxation",
-      reason: drResult.reason
+      meta: lastResult.meta,
+      convergenceHistory: drResult.history
     };
   }
 
@@ -731,7 +826,8 @@ function solveEquilibrium3d({ model, solver, x0 }) {
       energy: assembled.energy,
       damping,
       dampingFloor: sailDampingFloor,
-      maxDof: normInf(x)
+      maxDof: normInf(x),
+      membranes: assembled.membraneMetrics
     });
 
     if (gInf < minGrad) {

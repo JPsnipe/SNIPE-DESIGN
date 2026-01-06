@@ -217,13 +217,34 @@ function buildPhase1Model3d({ geometry, controls, solver, state, constants }) {
   });
 
   // FORESTAY
-  addAxial({
-    name: "stay_jib",
-    i: houndsNodeId,
-    j: bowId,
-    N: Math.max(0, (state.halyardScale || 0) * (controls.jibHalyardTensionN || 0)),
-    kind: "tension"
-  });
+  const stayTensionTarget = Math.max(0, (state.halyardScale || 0) * (controls.jibHalyardTensionN || 0));
+  const lockStay = controls.lockStayLength === true;
+
+  if (lockStay && stayTensionTarget > 0) {
+    const p1 = nodes[houndsNodeId].p0;
+    const p2 = nodes[bowId].p0;
+    const L_current = norm3(sub3(p2, p1));
+    // T = EA * (L - L0) / L0  =>  T*L0 = EA*L - EA*L0  => L0(T + EA) = EA*L
+    const L0_stay = (rigEA * L_current) / (rigEA + stayTensionTarget);
+
+    addAxial({
+      name: "stay_jib",
+      i: houndsNodeId,
+      j: bowId,
+      EA: rigEA,
+      L0: L0_stay,
+      kind: "cable",
+      smoothDeltaM: rigSmoothDeltaM
+    });
+  } else {
+    addAxial({
+      name: "stay_jib",
+      i: houndsNodeId,
+      j: bowId,
+      N: stayTensionTarget,
+      kind: "tension"
+    });
+  }
 
   const springs = [
     {

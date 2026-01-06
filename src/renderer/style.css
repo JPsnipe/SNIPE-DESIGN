@@ -178,6 +178,32 @@ summary:hover {
   align-items: center;
 }
 
+.lock-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  background: rgba(166, 255, 74, 0.08);
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(166, 255, 74, 0.15);
+  transition: all 0.2s;
+}
+
+.lock-toggle:hover {
+  background: rgba(166, 255, 74, 0.15);
+  border-color: rgba(166, 255, 74, 0.3);
+}
+
+.lock-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
 input[type="number"] {
   background: #000;
   border: 1px solid var(--border);

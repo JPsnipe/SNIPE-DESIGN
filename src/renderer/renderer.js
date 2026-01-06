@@ -1190,6 +1190,7 @@ function buildPayloadFromUi() {
       shroudDeltaL0PortM: mmToM(getNumber("shroudDeltaPortMm")),
       shroudDeltaL0StbdM: mmToM(getNumber("shroudDeltaStbdMm")),
       jibHalyardTensionN: kNToN(getNumber("jibHalyardTensionkN")),
+      lockStayLength: byId("lockStayLength")?.checked || false,
       partnersKx: kNpmToNpm(getNumber("partnersKx")),
       partnersKy: kNpmToNpm(getNumber("partnersKy"))
     },
@@ -1656,7 +1657,17 @@ async function main() {
       }
 
       // Debug: convergence history (plot + table)
-      lastConvergenceHistory = res.diagnostics?.convergenceHistory ?? [];
+      const fullHistory = [];
+      let iterOffset = 0;
+      (res.history || []).forEach(phase => {
+        if (phase.convergenceHistory) {
+          phase.convergenceHistory.forEach(h => {
+            fullHistory.push({ ...h, iter: h.iter + iterOffset });
+          });
+          iterOffset = fullHistory.length;
+        }
+      });
+      lastConvergenceHistory = fullHistory;
       lastConvergenceTol = payload.solver?.toleranceN ?? null;
       plotConvergenceHistory(byId("plotConvergence"), lastConvergenceHistory, { tol: lastConvergenceTol });
       renderConvergenceLegend(lastConvergenceHistory, lastConvergenceTol);

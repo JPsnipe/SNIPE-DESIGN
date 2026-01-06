@@ -890,6 +890,14 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
     model.sails.jib = { gridNodeIds: grid, nRows, nCols, stayNodeIds, membraneCount: jibMembranes.length };
   }
 
+  // VALIDACIÓN FINAL: Asegurar que no hay posiciones locas
+  for (const node of model.nodes) {
+    if (!node.p0.every(v => Number.isFinite(v) && Math.abs(v) < 100)) {
+      console.error(`FATAL ERROR: Node ${node.id} (${node.name}) has CRAZY p0: ${node.p0}`);
+      // Intentar rastrear de dónde vino
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   // CONFIGURAR PRESIÓN DE MEMBRANA (FOLLOWER LOAD)
   // ═══════════════════════════════════════════════════════════════════
