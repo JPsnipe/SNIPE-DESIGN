@@ -1,0 +1,16 @@
+Starting LIGHT Segregated Simulation...
+Simulation finished in 9.903s. Converged: true
+
+--- Final Tensions ---
+Stay: 505.6 N
+Shroud Port: 187.7 N
+
+--- Phase History ---
+Phase: standing_pretension | lambda: 0.50 | Iter: 2 | GradInf: 1.51e+1
+Phase: standing_pretension | lambda: 1.00 | Iter: 0 | GradInf: 1.51e+1
+Phase: jib_halyard | lambda: 0.50 | Iter: 49 | GradInf: 1.96e+1
+Phase: jib_halyard | lambda: 1.00 | Iter: 354 | GradInf: 1.99e+1
+Phase: sailing_load | lambda: 0.25 | Iter: 199 | GradInf: 9.93e+0
+Phase: sailing_load | lambda: 0.50 | Iter: 27 | GradInf: 3.25e+0
+Phase: sailing_load | lambda: 0.75 | Iter: 199 | GradInf: 1.01e+1
+Phase: sailing_load | lambda: 1.00 | Iter: 45 | GradInf: 4.96e+0

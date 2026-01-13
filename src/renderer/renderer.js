@@ -20,6 +20,22 @@ if (typeof snipeApi === "undefined") {
       });
       return resp.json();
     },
+    // Async version for web (fallback to sync)
+    runPhase1Async: async (payload) => {
+      const resp = await fetch("/api/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true"
+        },
+        body: JSON.stringify(payload)
+      });
+      return resp.json();
+    },
+    cancelSimulation: async () => ({ cancelled: false }),
+    getSimulationStatus: async () => ({ running: false }),
+    onSimulationProgress: () => () => {},
+    onSimulationStarted: () => () => {},
     exportJson: async ({ suggestedName, data }) => {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -43,6 +59,110 @@ if (typeof snipeApi === "undefined") {
   };
 }
 
+// Live metrics state
+let liveMetricsState = {
+  startTime: null,
+  elapsedTimer: null,
+  lastEnergy: null,
+  unsubProgress: null,
+  unsubStarted: null
+};
+
+function showLiveMetrics() {
+  const panel = byId("liveMetricsPanel");
+  const cancelBtn = byId("cancelBtn");
+  const runBtn = byId("runBtn");
+  if (panel) panel.hidden = false;
+  if (cancelBtn) cancelBtn.hidden = false;
+  if (runBtn) runBtn.disabled = true;
+
+  liveMetricsState.startTime = Date.now();
+  liveMetricsState.lastEnergy = null;
+
+  // Start elapsed time counter
+  updateElapsedTime();
+  liveMetricsState.elapsedTimer = setInterval(updateElapsedTime, 100);
+}
+
+function hideLiveMetrics() {
+  const panel = byId("liveMetricsPanel");
+  const cancelBtn = byId("cancelBtn");
+  const runBtn = byId("runBtn");
+  if (panel) panel.hidden = true;
+  if (cancelBtn) cancelBtn.hidden = true;
+  if (runBtn) runBtn.disabled = false;
+
+  if (liveMetricsState.elapsedTimer) {
+    clearInterval(liveMetricsState.elapsedTimer);
+    liveMetricsState.elapsedTimer = null;
+  }
+
+  // Cleanup subscriptions
+  if (liveMetricsState.unsubProgress) {
+    liveMetricsState.unsubProgress();
+    liveMetricsState.unsubProgress = null;
+  }
+  if (liveMetricsState.unsubStarted) {
+    liveMetricsState.unsubStarted();
+    liveMetricsState.unsubStarted = null;
+  }
+}
+
+function updateElapsedTime() {
+  if (!liveMetricsState.startTime) return;
+  const elapsed = (Date.now() - liveMetricsState.startTime) / 1000;
+  const el = byId("liveElapsed");
+  if (el) el.textContent = elapsed.toFixed(1) + "s";
+}
+
+function updateLiveMetrics(metrics) {
+  // Energy
+  const energyEl = byId("liveEnergy");
+  if (energyEl && metrics.energy !== undefined) {
+    const formatted = metrics.energy.toExponential(3);
+    energyEl.textContent = formatted;
+
+    // Color based on trend
+    if (liveMetricsState.lastEnergy !== null) {
+      if (metrics.energy < liveMetricsState.lastEnergy) {
+        energyEl.classList.add("improving");
+        energyEl.classList.remove("degrading");
+      } else if (metrics.energy > liveMetricsState.lastEnergy * 1.1) {
+        energyEl.classList.add("degrading");
+        energyEl.classList.remove("improving");
+      }
+    }
+    liveMetricsState.lastEnergy = metrics.energy;
+  }
+
+  // Gradient Max
+  const gradEl = byId("liveGradMax");
+  if (gradEl && metrics.gradMax !== undefined) {
+    gradEl.textContent = metrics.gradMax.toExponential(2);
+  }
+
+  // dt
+  const dtEl = byId("liveDt");
+  if (dtEl && metrics.dt !== undefined) {
+    dtEl.textContent = metrics.dt.toExponential(2);
+  }
+
+  // Mass range
+  const massEl = byId("liveMassRange");
+  if (massEl && metrics.massMin !== undefined && metrics.massMax !== undefined) {
+    massEl.textContent = `[${metrics.massMin.toExponential(1)}, ${metrics.massMax.toExponential(1)}]`;
+  }
+
+  // Progress bar (estimate based on energy reduction)
+  const progressEl = byId("liveProgressFill");
+  if (progressEl && metrics.energy !== undefined && metrics.gradMax !== undefined) {
+    // Rough progress estimate: log scale of gradient reduction
+    const logGrad = Math.log10(Math.max(1, metrics.gradMax));
+    const progress = Math.max(0, Math.min(100, (10 - logGrad) * 10));
+    progressEl.style.width = progress + "%";
+  }
+}
+
 const rigView = { yaw: -1.0, pitch: 0.4, zoom: 1.0 };
 let rigCanvasEl = null;
 let rigStatusEl = null;
@@ -53,6 +173,7 @@ let lastConvergenceHistory = [];
 let lastConvergenceTol = null;
 let presetsCache = [];
 let currentPresetIdx = 0;
+let lastResults = null;
 
 function byId(id) {
   const el = document.getElementById(id);
@@ -105,6 +226,16 @@ function setValue(id, value) {
 
 function getNumber(id) {
   const raw = byId(id).value;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new Error(`Invalid number for ${id}`);
+  return n;
+}
+
+function getOptionalNumber(id) {
+  const el = byId(id);
+  if (!el) return null;
+  const raw = String(el.value ?? "").trim();
+  if (raw === "") return null;
   const n = Number(raw);
   if (!Number.isFinite(n)) throw new Error(`Invalid number for ${id}`);
   return n;
@@ -274,10 +405,27 @@ function sampleCurveAtZ(curve, targetZ) {
     const zMax = Math.max(a.z, b.z);
     if (targetZ >= zMin && targetZ <= zMax) {
       const t = Math.abs(b.z - a.z) < 1e-9 ? 0 : (targetZ - a.z) / (b.z - a.z);
-      return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: targetZ };
+      // Interpolar también z para mantener consistencia con la curva deformada
+      const zInterp = lerp(a.z, b.z, t);
+      return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), z: zInterp };
     }
   }
   return curve[curve.length - 1];
+}
+
+// Encontrar el punto más cercano en Z de una curva (sin interpolación)
+function findClosestPointAtZ(curve, targetZ) {
+  if (!Array.isArray(curve) || curve.length === 0) return null;
+  let closest = curve[0];
+  let minDist = Math.abs(curve[0].z - targetZ);
+  for (const p of curve) {
+    const dist = Math.abs(p.z - targetZ);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = p;
+    }
+  }
+  return closest;
 }
 
 function toRenderVec(p) {
@@ -385,6 +533,7 @@ function drawRigScene(scene) {
     ctx.fill();
     ctx.fillText(marker.label, proj.x + 6, proj.y - 6);
   }
+
 }
 
 function buildRigScene(payload, results) {
@@ -397,10 +546,22 @@ function buildRigScene(payload, results) {
   const loaded = results.outputs.mastCurveLoaded ?? [];
   if (prebend.length === 0 || loaded.length === 0) return null;
 
-  const topLoaded = loaded[loaded.length - 1];
-  const houndsLoaded = sampleCurveAtZ(loaded, g.houndsZM) ?? topLoaded;
-  // Punto de anclaje de obenques (puede ser diferente de hounds)
-  const shroudAttachLoaded = sampleCurveAtZ(loaded, g.shroudAttachZM ?? g.houndsZM) ?? houndsLoaded;
+  // Sin amplificación visual - escala 1:1
+  const visualAmp = 1;
+  const loadedVisual = loaded;
+
+  // Calculate max deflection from reference line
+  let maxDeflection = 0;
+  for (const pt of loaded) {
+    const dx = Math.abs(pt.x ?? 0);
+    const dy = Math.abs(pt.y ?? 0);
+    maxDeflection = Math.max(maxDeflection, Math.sqrt(dx * dx + dy * dy));
+  }
+
+  const topLoaded = loadedVisual[loadedVisual.length - 1];
+  // Usar punto más cercano de la curva AMPLIFICADA para que la jarcia esté sobre ella
+  const houndsLoaded = findClosestPointAtZ(loadedVisual, g.houndsZM) ?? sampleCurveAtZ(loadedVisual, g.houndsZM) ?? topLoaded;
+  const shroudAttachLoaded = findClosestPointAtZ(loadedVisual, g.shroudAttachZM ?? g.houndsZM) ?? sampleCurveAtZ(loadedVisual, g.shroudAttachZM ?? g.houndsZM) ?? houndsLoaded;
 
   const deckOutline = [
     { x: -g.chainplateXM, y: g.chainplateYM, z: 0 },
@@ -410,21 +571,54 @@ function buildRigScene(payload, results) {
     { x: -g.chainplateXM, y: g.chainplateYM, z: 0 }
   ];
 
+  // Usar puntos de la curva AMPLIFICADA para conexiones visuales
   const spreaderBase =
-    sampleCurveAtZ(loaded, g.spreaderZM) ?? { x: 0, y: 0, z: g.spreaderZM };
+    findClosestPointAtZ(loadedVisual, g.spreaderZM) ?? sampleCurveAtZ(loadedVisual, g.spreaderZM) ?? { x: 0, y: 0, z: g.spreaderZM };
   const partnersBase =
-    sampleCurveAtZ(loaded, g.partnersZM) ?? { x: 0, y: 0, z: g.partnersZM };
+    findClosestPointAtZ(loadedVisual, g.partnersZM) ?? sampleCurveAtZ(loadedVisual, g.partnersZM) ?? { x: 0, y: 0, z: g.partnersZM };
 
+  // Posiciones de referencia de las crucetas (geometría inicial sin deformación)
   const ySweep = -c.spreaderSweepAftM;
   const xOut = Math.sqrt(Math.max(0, c.spreaderLengthM * c.spreaderLengthM - ySweep * ySweep));
-  const portTip = { x: spreaderBase.x - xOut, y: spreaderBase.y + ySweep, z: g.spreaderZM };
-  const stbdTip = { x: spreaderBase.x + xOut, y: spreaderBase.y + ySweep, z: g.spreaderZM };
+  const portTipRef = { x: -xOut, y: ySweep, z: g.spreaderZM };
+  const stbdTipRef = { x: xOut, y: ySweep, z: g.spreaderZM };
+
+  // Usar posiciones REALES de las crucetas del solver si existen
+  const spreaderOutput = results.outputs.spreaders;
+  let portTip, stbdTip;
+
+  if (spreaderOutput?.tipPort && spreaderOutput?.tipStbd) {
+    // Posiciones reales del solver - amplificar solo la DEFLEXIÓN, no la posición completa
+    const portDeflection = {
+      x: spreaderOutput.tipPort.x - portTipRef.x,
+      y: spreaderOutput.tipPort.y - portTipRef.y
+    };
+    const stbdDeflection = {
+      x: spreaderOutput.tipStbd.x - stbdTipRef.x,
+      y: spreaderOutput.tipStbd.y - stbdTipRef.y
+    };
+    portTip = {
+      x: portTipRef.x + portDeflection.x * visualAmp,
+      y: portTipRef.y + portDeflection.y * visualAmp,
+      z: spreaderOutput.tipPort.z
+    };
+    stbdTip = {
+      x: stbdTipRef.x + stbdDeflection.x * visualAmp,
+      y: stbdTipRef.y + stbdDeflection.y * visualAmp,
+      z: spreaderOutput.tipStbd.z
+    };
+  } else {
+    // Fallback: usar posición base del mástil amplificada + offset geométrico
+    portTip = { x: spreaderBase.x - xOut, y: spreaderBase.y + ySweep, z: spreaderBase.z };
+    stbdTip = { x: spreaderBase.x + xOut, y: spreaderBase.y + ySweep, z: spreaderBase.z };
+  }
   const chainPort = { x: -g.chainplateXM, y: g.chainplateYM, z: 0 };
   const chainStbd = { x: g.chainplateXM, y: g.chainplateYM, z: 0 };
   const bow = { x: 0, y: g.bowYM, z: 0 };
   const markers = [];
 
   const sailBounds = [];
+  const sailsRelaxed = results.outputs?.sails?.relaxed ?? null;
   const sailsLoaded = results.outputs?.sails?.loaded ?? null;
   const toPoint = (p) => ({ x: p[0], y: p[1], z: p[2] });
 
@@ -438,15 +632,40 @@ function buildRigScene(payload, results) {
     forestayPoints = [...luffPoints, houndsLoaded];
   }
 
+  const cc = results.outputs.cableCurves || {};
+  let forestayPointsPath = forestayPoints;
+  if (cc.stay_jib?.length > 0) {
+    forestayPointsPath = [houndsLoaded, ...cc.stay_jib.map(p => ({ x: p.x, y: p.y, z: p.z })), bow];
+  }
+
+  let shPortPoints = [shroudAttachLoaded, portTip, chainPort];
+  if (cc.shroud_port?.length > 0) {
+    const up = cc.shroud_port.filter(n => n.name.includes("_up_")).map(p => ({ x: p.x, y: p.y, z: p.z }));
+    const low = cc.shroud_port.filter(n => n.name.includes("_low_")).map(p => ({ x: p.x, y: p.y, z: p.z }));
+    shPortPoints = [shroudAttachLoaded, ...up, portTip, ...low, chainPort];
+  }
+
+  let shStbdPoints = [shroudAttachLoaded, stbdTip, chainStbd];
+  if (cc.shroud_stbd?.length > 0) {
+    const up = cc.shroud_stbd.filter(n => n.name.includes("_up_")).map(p => ({ x: p.x, y: p.y, z: p.z }));
+    const low = cc.shroud_stbd.filter(n => n.name.includes("_low_")).map(p => ({ x: p.x, y: p.y, z: p.z }));
+    shStbdPoints = [shroudAttachLoaded, ...up, stbdTip, ...low, chainStbd];
+  }
+
+  // Generar curva de referencia RECTA (geometría original sin deformación)
+  const referenceStraight = relaxed.map(p => ({ x: 0, y: 0, z: p.z }));
+
+  // NOTA: En el panel 3D mostramos:
+  // - Referencia recta (línea punteada azul clara) para comparar
+  // - Mástil CARGADO (línea verde gruesa) que es el estado deformado con la jarcia conectada
+  // Si la deflexión es muy pequeña, se amplifica visualmente para que sea perceptible
   const lines = [
     { name: "deck", points: deckOutline, color: "rgba(255,255,255,0.12)", width: 1, dash: [5, 4] },
-    { name: "relaxed", points: relaxed, color: "rgba(255,255,255,0.2)", width: 1, dash: [5, 5] },
-    { name: "prebend", points: prebend, color: "#479ef5", width: 2 },
-    { name: "loaded", points: loaded, color: "#8dfa46", width: 3 },
-    { name: "forestay", points: forestayPoints, color: "rgba(255,255,255,0.26)", width: 1.4 },
-    // Shrouds parten del punto de anclaje de obenques (shroudAttachLoaded), NO de hounds
-    { name: "shroud_port", points: [shroudAttachLoaded, portTip, chainPort], color: "rgba(255,255,255,0.28)", width: 1.3 },
-    { name: "shroud_stbd", points: [shroudAttachLoaded, stbdTip, chainStbd], color: "rgba(255,255,255,0.28)", width: 1.3 },
+    { name: "reference", points: referenceStraight, color: "#479ef5", width: 2, dash: [4, 6] },  // Azul - referencia recta
+    { name: "loaded", points: loadedVisual, color: "#8dfa46", width: 3.5 },  // Verde - mástil deformado (amplificado si necesario)
+    { name: "forestay", points: forestayPointsPath, color: "rgba(255,255,255,0.26)", width: 1.4 },
+    { name: "shroud_port", points: shPortPoints, color: "rgba(255,255,255,0.28)", width: 1.3 },
+    { name: "shroud_stbd", points: shStbdPoints, color: "rgba(255,255,255,0.28)", width: 1.3 },
     { name: "spreader_port", points: [spreaderBase, portTip], color: "#ffcc00", width: 2.2 },
     { name: "spreader_stbd", points: [spreaderBase, stbdTip], color: "#ffcc00", width: 2.2 },
     { name: "partners", points: [{ x: 0, y: 0, z: 0 }, partnersBase], color: "rgba(255,255,255,0.18)", width: 1 }
@@ -471,6 +690,15 @@ function buildRigScene(payload, results) {
     }
   };
 
+  // Velas RELAJADAS (sin carga de viento) - referencia en color tenue
+  if (sailsRelaxed?.main) {
+    addSailGrid(sailsRelaxed.main, "sail_main_ref", "rgba(100, 200, 255, 0.25)");
+  }
+  if (sailsRelaxed?.jib) {
+    addSailGrid(sailsRelaxed.jib, "sail_jib_ref", "rgba(255, 255, 255, 0.25)");
+  }
+
+  // Velas CARGADAS (bajo presión de viento) - estado deformado
   if (sailsLoaded?.main) {
     addSailGrid(sailsLoaded.main, "sail_main", "rgba(100, 200, 255, 0.8)");
     const mainGrid = sailsLoaded.main;
@@ -588,7 +816,7 @@ function buildRigScene(payload, results) {
     { x: 0, y: 0, z: 0 }
   ];
 
-  return { lines, markers, bounds };
+  return { lines, markers, bounds, visualAmp, maxDeflection };
 }
 
 function deltaLabel(currentMm, baseMm) {
@@ -607,59 +835,6 @@ function deltaLabelkN(currentkN, basekN) {
   return `${sign}${delta.toFixed(2)} kN vs preset`;
 }
 
-function renderRigSettings(payload, preset) {
-  if (!rigSettingsEl || !rigChangesEl || !payload) return;
-  const c = payload.controls;
-  const g = payload.geometry;
-  const load = payload.load;
-
-  const presetControls = preset?.controls ?? {};
-  const presetGeom = preset?.geometry ?? {};
-
-  const settings = [
-    { label: "Spreader L", value: `${(c.spreaderLengthM * 1000).toFixed(0)} mm`, delta: deltaLabel(c.spreaderLengthM * 1000, presetControls.spreaderLengthMm) },
-    { label: "Sweep aft", value: `${(c.spreaderSweepAftM * 1000).toFixed(0)} mm`, delta: deltaLabel(c.spreaderSweepAftM * 1000, presetControls.spreaderSweepAftMm) },
-    { label: "Shroud port", value: `${(c.shroudDeltaL0PortM * 1000).toFixed(1)} mm`, delta: deltaLabel(c.shroudDeltaL0PortM * 1000, presetControls.shroudDeltaPortMm) },
-    { label: "Shroud stbd", value: `${(c.shroudDeltaL0StbdM * 1000).toFixed(1)} mm`, delta: deltaLabel(c.shroudDeltaL0StbdM * 1000, presetControls.shroudDeltaStbdMm) },
-    {
-      label: "Stay/Driza",
-      value: `${(c.jibHalyardTensionN / 1000).toFixed(2)} kN`,
-      delta: deltaLabelkN(c.jibHalyardTensionN / 1000, presetControls.jibHalyardTensionkN)
-    },
-    {
-      label: "Partners kx/ky",
-      value: `${(c.partnersKx / 1000).toFixed(0)} / ${(c.partnersKy / 1000).toFixed(0)} kN/m`,
-      delta: ""
-    },
-    { label: "Load", value: `${load.mode} @ ${load.qLateralNpm} N/m (${load.qProfile})`, delta: "" },
-    { label: "Mast L", value: `${(g.mastLengthM * 1000).toFixed(0)} mm`, delta: deltaLabel(g.mastLengthM * 1000, presetGeom.mastLengthMm) }
-  ];
-
-  rigSettingsEl.innerHTML = "";
-  rigChangesEl.innerHTML = "";
-
-  for (const s of settings) {
-    const chip = document.createElement("span");
-    chip.className = "chip";
-    chip.textContent = `${s.label}: ${s.value}`;
-    rigSettingsEl.appendChild(chip);
-
-    if (s.delta) {
-      const delta = document.createElement("span");
-      delta.className = "chip chipLoaded";
-      delta.textContent = s.delta;
-      rigChangesEl.appendChild(delta);
-    }
-  }
-
-  if (!rigChangesEl.childElementCount) {
-    const neutral = document.createElement("span");
-    neutral.className = "chip";
-    neutral.textContent = "Sin cambios vs preset";
-    rigChangesEl.appendChild(neutral);
-  }
-}
-
 function setRigStatus(text) {
   if (!rigStatusEl) return;
   rigStatusEl.textContent = text;
@@ -671,7 +846,6 @@ function updateRigPanel(payload, results, preset) {
     setRigStatus(`Error: No converge (${results.reason || 'inestabilidad numérica'})`);
   }
   rigScene = buildRigScene(payload, results);
-  // renderRigSettings(payload ?? null, preset); // Removed as per user request
   drawRigScene(rigScene);
   if (!results) {
     setRigStatus("Simula para ver la jarcia en 3D");
@@ -1191,8 +1365,10 @@ function buildPayloadFromUi() {
       shroudDeltaL0StbdM: mmToM(getNumber("shroudDeltaStbdMm")),
       jibHalyardTensionN: kNToN(getNumber("jibHalyardTensionkN")),
       lockStayLength: byId("lockStayLength")?.checked || false,
-      partnersKx: kNpmToNpm(getNumber("partnersKx")),
-      partnersKy: kNpmToNpm(getNumber("partnersKy"))
+      partnersKx: byId("partnersReleaseX")?.checked ? 0 : kNpmToNpm(getNumber("partnersKx")),
+      partnersKy: byId("partnersReleaseY")?.checked ? 0 : kNpmToNpm(getNumber("partnersKy")),
+      partnersOffsetXM: mmToM(getNumber("partnersOffsetX") || 0),
+      partnersOffsetYM: mmToM(getNumber("partnersOffsetY") || 0)
     },
     load: {
       mode: byId("loadMode").value,
@@ -1201,13 +1377,24 @@ function buildPayloadFromUi() {
     },
     solver: {
       mastSegments: Math.trunc(getNumber("mastSegments")),
+      cableSegments: Math.trunc(getNumber("cableSegments") || 1),
       pretensionSteps: Math.trunc(getNumber("pretensionSteps")),
       loadSteps: Math.trunc(getNumber("loadSteps")),
       maxIterations: Math.trunc(getNumber("maxIters")),
       toleranceN: getNumber("tol"),
       cableCompressionEps: getNumber("cableEps"),
       sailDamping: getNumber("sailDamping"),
-      sailDampingDecay: getNumber("sailDampingDecay")
+      sailDampingDecay: getNumber("sailDampingDecay"),
+      drTimeStep: getNumber("drTimeStep"),
+      drViscousDamping: getNumber("drViscousDamping"),
+      drWarmupIters: Math.trunc(getNumber("drWarmupIters")),
+      drKineticBacktrack: getNumber("drKineticBacktrack"),
+      drMaxStepM: getNumber("drMaxStepM"),
+      drStabilityFactor: getNumber("drStabilityFactor"),
+      drMassSafety: getNumber("drMassSafety"),
+      drMaxIterations: Math.trunc(getNumber("drMaxIterations")),
+      pressureRampIters: Math.trunc(getNumber("pressureRampIters")),
+      drNewtonFallbackAfter: Math.trunc(getNumber("drNewtonFallbackAfter"))
     },
     // Rigidez del palo (variable con altura - conicidad)
     // Valores típicos Snipe (Selden C060, aluminio 6061-T6):
@@ -1220,6 +1407,17 @@ function buildPayloadFromUi() {
       taperStartZM: mmToM(getNumber("taperStartZMm") || 4500)  // Altura inicio conicidad
     }
   };
+
+  const membranePrestress = getOptionalNumber("membranePrestress");
+  const membranePretensionFraction = getOptionalNumber("membranePretensionFraction");
+  const membraneCurvatureRadius = getOptionalNumber("membraneCurvatureRadius");
+  const membraneWrinklingEps = getOptionalNumber("membraneWrinklingEps");
+  const membraneMaxStrain = getOptionalNumber("membraneMaxStrain");
+  if (Number.isFinite(membranePrestress)) payload.solver.membranePrestress = membranePrestress;
+  if (Number.isFinite(membranePretensionFraction)) payload.solver.membranePretensionFraction = membranePretensionFraction;
+  if (Number.isFinite(membraneCurvatureRadius)) payload.solver.membraneCurvatureRadius = membraneCurvatureRadius;
+  if (Number.isFinite(membraneWrinklingEps)) payload.solver.membraneWrinklingEps = membraneWrinklingEps;
+  if (Number.isFinite(membraneMaxStrain)) payload.solver.membraneMaxStrain = membraneMaxStrain;
 
   const sailsEnabledEl = byId("sailsEnabled");
   const sailsEnabled = Boolean(sailsEnabledEl && sailsEnabledEl.checked);
@@ -1305,12 +1503,15 @@ function applyPreset(preset) {
   setValue("jibHalyardTensionkN", preset.controls.jibHalyardTensionkN ?? 0);
   setValue("partnersKx", preset.controls.partnersKx_kNpm);
   setValue("partnersKy", preset.controls.partnersKy_kNpm);
+  setValue("partnersOffsetX", preset.controls.partnersOffsetXMm ?? 0);
+  setValue("partnersOffsetY", preset.controls.partnersOffsetYMm ?? 0);
 
   byId("loadMode").value = preset.load.mode;
   setValue("qLateral", preset.load.qLateralNpm);
   byId("qProfile").value = preset.load.qProfile;
 
   setValue("mastSegments", preset.solver.mastSegments);
+  setValue("cableSegments", preset.solver.cableSegments ?? 1);
   setValue("pretensionSteps", preset.solver.pretensionSteps);
   setValue("loadSteps", preset.solver.loadSteps);
   setValue("maxIters", preset.solver.maxIterations);
@@ -1318,6 +1519,22 @@ function applyPreset(preset) {
   setValue("cableEps", preset.solver.cableCompressionEps);
   setValue("sailDamping", preset.solver.sailDamping ?? 0.1);
   setValue("sailDampingDecay", preset.solver.sailDampingDecay ?? 0.85);
+  const defaultDrMaxIterations = (preset.solver.maxIterations ?? 300) * 20;
+  setValue("drTimeStep", preset.solver.drTimeStep ?? 0.002);
+  setValue("drViscousDamping", preset.solver.drViscousDamping ?? 0.05);
+  setValue("drWarmupIters", preset.solver.drWarmupIters ?? 200);
+  setValue("drKineticBacktrack", preset.solver.drKineticBacktrack ?? 1.0);
+  setValue("drMaxStepM", preset.solver.drMaxStepM ?? 0);
+  setValue("drStabilityFactor", preset.solver.drStabilityFactor ?? 0.5);
+  setValue("drMassSafety", preset.solver.drMassSafety ?? 2.0);
+  setValue("drMaxIterations", preset.solver.drMaxIterations ?? defaultDrMaxIterations);
+  setValue("pressureRampIters", preset.solver.pressureRampIters ?? 200);
+  setValue("drNewtonFallbackAfter", preset.solver.drNewtonFallbackAfter ?? 1000);
+  setValue("membranePrestress", "");
+  setValue("membranePretensionFraction", "");
+  setValue("membraneCurvatureRadius", "");
+  setValue("membraneWrinklingEps", "");
+  setValue("membraneMaxStrain", "");
 
   // Rigidez del palo (valores por defecto si no existen en preset)
   // Valores típicos Snipe según SCIRA y sección Selden C060
@@ -1386,6 +1603,266 @@ function applyPreset(preset) {
 
 // Race mode logic removed for Laboratorio de Análisis.
 
+
+function bindSyncedInput(sliderId, inputId, onChange) {
+  const slider = byId(sliderId);
+  const input = byId(inputId);
+  if (!slider || !input) return;
+
+  const update = (src, dest) => {
+    dest.value = src.value;
+    if (onChange) onChange();
+  };
+
+  slider.addEventListener("input", () => update(slider, input));
+  input.addEventListener("input", () => update(input, slider));
+}
+
+async function runSimulation() {
+  const runBtn = byId("runBtn");
+  const exportJsonBtn = byId("exportJsonBtn");
+  const exportCsvBtn = byId("exportCsvBtn");
+
+  exportJsonBtn.disabled = true;
+  exportCsvBtn.disabled = true;
+  lastResults = null;
+
+  byId("solverOut").textContent = "Ejecutando...";
+  byId("tensionsOut").textContent = "";
+  byId("spreaderOut").textContent = "";
+  byId("equilibriumOut").textContent = "";
+  setRigStatus("Calculando...");
+
+  try {
+    const payload = buildPayloadFromUi();
+    const isHighRes = (payload.sails?.enabled) && (
+      (payload.sails.main?.enabled && payload.sails.main.mesh.luffSegments * payload.sails.main.mesh.chordSegments > 150) ||
+      (payload.sails.jib?.enabled && payload.sails.jib.mesh.luffSegments * payload.sails.jib.mesh.chordSegments > 100)
+    );
+
+    if (isHighRes) {
+      setRigStatus("Calculando malla densa... (puede tardar)");
+    }
+
+    const warnings = [];
+    const g = payload.geometry;
+    const c = payload.controls;
+
+    // Mast Length: 6480 - 6500 mm (Butt to Top)
+    if (g.mastLengthM > 6.500) warnings.push("Mast length exceeds SCIRA limit (max 6500mm).");
+    else if (g.mastLengthM < 6.480) warnings.push("Mast length below SCIRA limit (min 6480mm).");
+
+    // Hounds height (Intersection): 4860 - 4962 mm
+    if (g.houndsZM > 4.962) warnings.push("Hounds (attachment) too high (max 4962mm).");
+    else if (g.houndsZM < 4.860) warnings.push("Hounds too low (min 4860mm).");
+
+    // Fogonadura (Deck height): ~400 mm
+    if (g.partnersZM > 0.420) warnings.push("Altura fogonadura muy alta (tipico max 400-420mm).");
+    else if (g.partnersZM < 0.380) warnings.push("Altura fogonadura muy baja (min 390mm).");
+
+    // Mast position (Stem to mast front): 1498 - 1524 mm
+    if (g.bowYM > 1.524) warnings.push("Mast positioned too far aft (Stem to Front max 1524mm).");
+    else if (g.bowYM < 1.498) warnings.push("Mast positioned too far forward (Stem to Front min 1498mm).");
+
+    // Spreader tip-to-tip: 735 - 773 mm
+    const xOutFortt = Math.sqrt(Math.max(0, c.spreaderLengthM ** 2 - c.spreaderSweepAftM ** 2));
+    const tipToTipMm = 2 * xOutFortt * 1000;
+    if (tipToTipMm > 773) warnings.push(`Spreader tip-to-tip (${tipToTipMm.toFixed(0)}mm) > 773mm.`);
+    else if (tipToTipMm < 735 && tipToTipMm > 100) warnings.push(`Spreader tip-to-tip (${tipToTipMm.toFixed(0)}mm) < 735mm.`);
+
+    // Show live metrics panel
+    showLiveMetrics();
+
+    // Subscribe to progress updates (Electron only)
+    if (snipeApi.onSimulationProgress) {
+      liveMetricsState.unsubProgress = snipeApi.onSimulationProgress((metrics) => {
+        updateLiveMetrics(metrics);
+      });
+    }
+
+    const startTime = performance.now();
+
+    // Use async API if available
+    let res;
+    if (snipeApi.runPhase1Async) {
+      const asyncResult = await snipeApi.runPhase1Async(payload);
+      res = asyncResult.result || asyncResult;
+    } else {
+      res = await snipeApi.runPhase1(payload);
+    }
+
+    const endTime = performance.now();
+
+    // Hide live metrics panel
+    hideLiveMetrics();
+
+    lastResults = res;
+
+    const durationMs = (endTime - startTime).toFixed(0);
+    const simTime = `Simulado en ${durationMs}ms`;
+    setResValue("simulationTime", simTime);
+    setResValue("simulationTimeSummary", simTime);
+
+    // 1. Convergencia
+    const convState = res.converged ? "success" : "error";
+    const convText = res.converged ? "Convergido" : "No converge";
+    setStatus("converged-status", convState, convText);
+    setStatus("converged-status-summary", convState, convText);
+    setResValue("res-iters", res.iterations ?? "?");
+    setResValue("res-energy", Number.isFinite(res.energy) ? res.energy.toExponential(4) : "N/A");
+
+    const warnEl = byId("converge-warnings");
+    warnEl.innerHTML = "";
+    warnings.forEach(w => {
+      const item = document.createElement("div");
+      item.className = "warn-item";
+      item.textContent = w.replace("⚠️ ", "");
+      warnEl.appendChild(item);
+    });
+    if (res.diagnostics?.slackCables?.length) {
+      const slack = res.diagnostics.slackCables;
+      const clothMainCount = slack.filter(s => s.startsWith("cloth_main")).length;
+      const clothJibCount = slack.filter(s => s.startsWith("cloth_jib")).length;
+      const others = slack.filter(s => !s.startsWith("cloth_main") && !s.startsWith("cloth_jib"));
+
+      const item = document.createElement("div");
+      item.className = "warn-item";
+      let msg = "";
+      if (clothMainCount) msg += `Paño Mayor: ${clothMainCount} cab. sin tensión. `;
+      if (clothJibCount) msg += `Paño Foque: ${clothJibCount} cab. sin tensión. `;
+      if (others.length) msg += `Otros: ${others.join(", ")}`;
+      item.textContent = msg;
+      warnEl.appendChild(item);
+    }
+
+    // Debug: convergence history (plot + table)
+    const fullHistory = [];
+    let iterOffset = 0;
+    (res.history || []).forEach(phase => {
+      if (phase.convergenceHistory) {
+        phase.convergenceHistory.forEach(h => {
+          fullHistory.push({ ...h, iter: h.iter + iterOffset });
+        });
+        iterOffset = fullHistory.length;
+      }
+    });
+    lastConvergenceHistory = fullHistory;
+    lastConvergenceTol = payload.solver?.toleranceN ?? null;
+    plotConvergenceHistory(byId("plotConvergence"), lastConvergenceHistory, { tol: lastConvergenceTol });
+    renderConvergenceLegend(lastConvergenceHistory, lastConvergenceTol);
+    renderConvergenceTable(lastConvergenceHistory);
+
+    if (!res.outputs) {
+      setRigStatus(res.reason || "Error en el cálculo");
+      return;
+    }
+
+    const hasMain = !!res.outputs.sails?.loaded?.main;
+    const hasJib = !!res.outputs.sails?.loaded?.jib;
+    if (hasMain || hasJib) {
+      let msg = "Simulación lista. Malla: ";
+      if (hasMain) {
+        const m = res.outputs.sails.loaded.main;
+        msg += `Mayor ${m.length - 1}x${m[0].length - 1} `;
+      }
+      if (hasJib) {
+        const j = res.outputs.sails.loaded.jib;
+        msg += `Foque ${j.length - 1}x${j[0].length - 1}`;
+      }
+      setRigStatus(msg);
+    } else {
+      setRigStatus("Simulación lista.");
+    }
+
+    // 2. Tensiones
+    const t = res.outputs.tensions || {};
+    const formatKN = (n) => (n / 1000).toFixed(2) + " kN";
+    const formatN = (n) => (n || 0).toFixed(1) + " N";
+
+    const formatKNSlack = (id, flagId, n) => {
+      const val = formatKN(n);
+      const el = byId(id);
+      const flag = byId(flagId);
+      if (el) {
+        el.textContent = val;
+        const isSlack = n < 1.0;
+        el.classList.toggle("slack", isSlack);
+        if (flag) flag.hidden = !isSlack;
+      }
+    };
+    formatKNSlack("res-shroud-port", "flag-shroud-port", t.shroudPortN);
+    formatKNSlack("res-shroud-stbd", "flag-shroud-stbd", t.shroudStbdN);
+    formatKNSlack("res-stay", "flag-stay", t.forestayN);
+
+    // 3. Spreader
+    const s = res.outputs.spreaders;
+    const xOutTt = Math.sqrt(Math.max(0, c.spreaderLengthM ** 2 - c.spreaderSweepAftM ** 2));
+    const tip2TipMm = 2 * xOutTt * 1000;
+    const flechaMm = c.spreaderSweepAftM * 1000;
+    setResValue("res-tip-tip", `${tip2TipMm.toFixed(0)} mm`);
+    setResValue("res-flecha", `${flechaMm.toFixed(1)} mm`);
+    setResValue("res-axial-port", formatN(s.portAxialN));
+    setResValue("res-axial-stbd", formatN(s.stbdAxialN));
+
+    // 4. Equilibrio
+    const eq = res.outputs.equilibrium || {};
+    const eqSumFx = Number.isFinite(eq.openSumFx) ? eq.openSumFx : eq.sumFx;
+    const eqSumFy = Number.isFinite(eq.openSumFy) ? eq.openSumFy : eq.sumFy;
+    const eqMag = Number.isFinite(eq.openMagnitude) ? eq.openMagnitude : eq.magnitude;
+    const eqBalanced = typeof eq.openIsBalanced === "boolean" ? eq.openIsBalanced : eq.isBalanced;
+
+    setStatus("equilibrium-status", eqBalanced ? "success" : "error", eqBalanced ? "Equilibrado" : "Revisar");
+    setResValue("res-ext-fx", `${eq.externalFx?.toFixed(1) ?? "0"} N`);
+    setResValue("res-ext-fy", `${eq.externalFy?.toFixed(1) ?? "0"} N`);
+    const rzVal = `${((eq.mastStepRz ?? 0) / 1000).toFixed(2)} kN`;
+    setResValue("res-base-rz", rzVal);
+    setResValue("res-base-rz-duplicate", rzVal);
+    setResValue("res-partners-fx", `${eq.partnersRx?.toFixed(1) ?? "0"} N`);
+    setResValue("res-sum-fx", `${Number.isFinite(eqSumFx) ? eqSumFx.toFixed(1) : "?"} N`);
+    setResValue("res-sum-fy", `${Number.isFinite(eqSumFy) ? eqSumFy.toFixed(1) : "?"} N`);
+    setResValue("res-sum-mag", `${Number.isFinite(eqMag) ? eqMag.toFixed(1) : "?"} N`);
+
+    // Backward compatibility (old hidden pre tags)
+    byId("solverOut").textContent = [...warnings, `converged: ${res.converged}`].join("\n");
+    byId("tensionsOut").textContent = `shroud port: ${formatKN(t.shroudPortN)}\nshroud stbd: ${formatKN(t.shroudStbdN)}`;
+
+    const out = res.outputs;
+
+    // DEBUG: Verificar datos de curvas
+    const preTop = out.mastCurvePrebend?.[out.mastCurvePrebend.length - 1];
+    const loadTop = out.mastCurveLoaded?.[out.mastCurveLoaded.length - 1];
+    console.log('=== DEBUG CURVAS (datos del solver) ===');
+    console.log('PREBEND top: x=' + ((preTop?.x || 0) * 1000).toFixed(1) + 'mm, y=' + ((preTop?.y || 0) * 1000).toFixed(1) + 'mm');
+    console.log('LOADED top:  x=' + ((loadTop?.x || 0) * 1000).toFixed(1) + 'mm, y=' + ((loadTop?.y || 0) * 1000).toFixed(1) + 'mm');
+    const prebendMaxX = Math.max(...(out.mastCurvePrebend || []).map(p => Math.abs(p.x))) * 1000;
+    const loadedMaxX = Math.max(...(out.mastCurveLoaded || []).map(p => Math.abs(p.x))) * 1000;
+    console.log('Max |x| PREBEND: ' + prebendMaxX.toFixed(1) + 'mm');
+    console.log('Max |x| LOADED:  ' + loadedMaxX.toFixed(1) + 'mm');
+    console.log(loadedMaxX > prebendMaxX ? '✓ CORRECTO: LOADED tiene mas deflexion' : '✗ ERROR: PREBEND tiene mas deflexion!');
+
+    const relaxedXZ = (out.mastCurveRelaxed || []).map((p) => ({ z: p.z, value: p.x }));
+    const prebendXZ = (out.mastCurvePrebend || []).map((p) => ({ z: p.z, value: p.x }));
+    const loadedXZ = (out.mastCurveLoaded || []).map((p) => ({ z: p.z, value: p.x }));
+    plotCurve(byId("plotXZ"), [relaxedXZ, prebendXZ, loadedXZ], { axisLabel: "x", geometry: payload.geometry });
+
+    const relaxedYZ = (out.mastCurveRelaxed || []).map((p) => ({ z: p.z, value: p.y }));
+    const prebendYZ = (out.mastCurvePrebend || []).map((p) => ({ z: p.z, value: p.y }));
+    const loadedYZ = (out.mastCurveLoaded || []).map((p) => ({ z: p.z, value: p.y }));
+    plotCurve(byId("plotYZ"), [relaxedYZ, prebendYZ, loadedYZ], { axisLabel: "y", geometry: payload.geometry });
+
+    updateRigPanel(payload, res, presetsCache[currentPresetIdx]);
+
+    exportJsonBtn.disabled = false;
+    exportCsvBtn.disabled = false;
+  } catch (err) {
+    console.error(err);
+    hideLiveMetrics();
+    setRigStatus("Fallo al calcular: " + (err.message || err));
+    setStatus("converged-status", "error", "Error");
+    setStatus("converged-status-summary", "error", "Error");
+  }
+}
+
 async function main() {
   rigCanvasEl = byId("rig3dCanvas");
   rigStatusEl = byId("rig3dStatus");
@@ -1436,19 +1913,7 @@ async function main() {
   // Sync range sliders with number inputs
   document.querySelectorAll('input[type="range"]').forEach(slider => {
     const numId = slider.id.replace("Slider", "");
-    try {
-      const numInput = byId(numId);
-      slider.addEventListener("input", () => {
-        numInput.value = slider.value;
-        debouncedRun();
-      });
-      numInput.addEventListener("input", () => {
-        slider.value = numInput.value;
-        debouncedRun();
-      });
-    } catch (e) {
-      console.warn("Could not sync slider", slider.id);
-    }
+    bindSyncedInput(slider.id, numId, debouncedRun);
   });
 
   // Secciones de forma: mostrar solo las primeras N (evita filas visibles sin efecto).
@@ -1494,17 +1959,15 @@ async function main() {
   ["jibDraftPct", "jibDraftPctSlider"].forEach((id) => byId(id)?.addEventListener("input", syncJibDepth));
   ["jibDraftPosPct", "jibDraftPosPctSlider"].forEach((id) => byId(id)?.addEventListener("input", syncJibPos));
 
-  // Sync mesh resolution sliders
-  const meshInputs = ["mainLuffSeg", "mainChordSeg", "jibLuffSeg", "jibChordSeg"];
-  meshInputs.forEach(id => {
-    byId(id)?.addEventListener("input", debouncedRun);
-    byId(`${id}Slider`)?.addEventListener("input", debouncedRun);
-  });
-
   // Also trigger auto-run on other inputs (selects, etc)
   document.querySelectorAll("select, .field-row input").forEach(el => {
     if (el.id === "presetSelect") return;
     el.addEventListener("change", debouncedRun);
+  });
+  // Checkboxes for releasing partners springs
+  ["partnersReleaseX", "partnersReleaseY"].forEach(id => {
+    const el = byId(id);
+    if (el) el.addEventListener("change", debouncedRun);
   });
   document.querySelectorAll(".section-row input").forEach(el => {
     const updateCustomFlag = () => {
@@ -1564,211 +2027,21 @@ async function main() {
   const exportJsonBtn = byId("exportJsonBtn");
   const exportCsvBtn = byId("exportCsvBtn");
 
-  let lastResults = null;
+  runBtn.addEventListener("click", runSimulation);
 
-  runBtn.addEventListener("click", async () => {
-    exportJsonBtn.disabled = true;
-    exportCsvBtn.disabled = true;
-    lastResults = null;
-
-    byId("solverOut").textContent = "Ejecutando...";
-    byId("tensionsOut").textContent = "";
-    byId("spreaderOut").textContent = "";
-    byId("equilibriumOut").textContent = "";
-    setRigStatus("Calculando...");
-
-    try {
-      const payload = buildPayloadFromUi();
-      const isHighRes = (payload.sails?.enabled) && (
-        (payload.sails.main?.enabled && payload.sails.main.mesh.luffSegments * payload.sails.main.mesh.chordSegments > 150) ||
-        (payload.sails.jib?.enabled && payload.sails.jib.mesh.luffSegments * payload.sails.jib.mesh.chordSegments > 100)
-      );
-
-      if (isHighRes) {
-        setRigStatus("Calculando malla densa... (puede tardar)");
-      }
-
-      const warnings = [];
-      const g = payload.geometry;
-      const c = payload.controls;
-
-      // Mast Length: 6480 - 6500 mm (Butt to Top)
-      if (g.mastLengthM > 6.500) warnings.push("⚠️ Mast length exceeds SCIRA limit (max 6500mm).");
-      else if (g.mastLengthM < 6.480) warnings.push("⚠️ Mast length below SCIRA limit (min 6480mm).");
-
-      // Hounds height (Intersection): 4860 - 4962 mm
-      if (g.houndsZM > 4.962) warnings.push("⚠️ Hounds (attachment) too high (max 4962mm).");
-      else if (g.houndsZM < 4.860) warnings.push("⚠️ Hounds too low (min 4860mm).");
-
-      // Fogonadura (Deck height): ~400 mm
-      if (g.partnersZM > 0.420) warnings.push("⚠️ Altura fogonadura muy alta (típico max 400-420mm).");
-      else if (g.partnersZM < 0.380) warnings.push("⚠️ Altura fogonadura muy baja (min 390mm).");
-
-      // Mast position (Stem to mast front): 1498 - 1524 mm
-      if (g.bowYM > 1.524) warnings.push("⚠️ Mast positioned too far aft (Stem to Front max 1524mm).");
-      else if (g.bowYM < 1.498) warnings.push("⚠️ Mast positioned too far forward (Stem to Front min 1498mm).");
-
-      // Spreader tip-to-tip: 735 - 773 mm
-      const xOutFortt = Math.sqrt(Math.max(0, c.spreaderLengthM ** 2 - c.spreaderSweepAftM ** 2));
-      const tipToTipMm = 2 * xOutFortt * 1000;
-      if (tipToTipMm > 773) warnings.push(`⚠️ Spreader tip-to-tip (${tipToTipMm.toFixed(0)}mm) > 773mm.`);
-      else if (tipToTipMm < 735 && tipToTipMm > 100) warnings.push(`⚠️ Spreader tip-to-tip (${tipToTipMm.toFixed(0)}mm) < 735mm.`);
-
-      const startTime = performance.now();
-      const res = await snipeApi.runPhase1(payload);
-      const endTime = performance.now();
-      lastResults = res;
-
-      const durationMs = (endTime - startTime).toFixed(0);
-      const simTime = `Simulado en ${durationMs}ms`;
-      setResValue("simulationTime", simTime);
-      setResValue("simulationTimeSummary", simTime);
-
-      // 1. Convergencia
-      const convState = res.converged ? "success" : "error";
-      const convText = res.converged ? "Convergido" : "No converge";
-      setStatus("converged-status", convState, convText);
-      setStatus("converged-status-summary", convState, convText);
-      setResValue("res-iters", res.iterations);
-      setResValue("res-energy", res.energy.toExponential(4));
-
-      const warnEl = byId("converge-warnings");
-      warnEl.innerHTML = "";
-      warnings.forEach(w => {
-        const item = document.createElement("div");
-        item.className = "warn-item";
-        item.textContent = w.replace("⚠️ ", "");
-        warnEl.appendChild(item);
-      });
-      if (res.diagnostics?.slackCables?.length) {
-        const slack = res.diagnostics.slackCables;
-        const clothMainCount = slack.filter(s => s.startsWith("cloth_main")).length;
-        const clothJibCount = slack.filter(s => s.startsWith("cloth_jib")).length;
-        const others = slack.filter(s => !s.startsWith("cloth_main") && !s.startsWith("cloth_jib"));
-
-        const item = document.createElement("div");
-        item.className = "warn-item";
-        let msg = "";
-        if (clothMainCount) msg += `Paño Mayor: ${clothMainCount} cab. sin tensión. `;
-        if (clothJibCount) msg += `Paño Foque: ${clothJibCount} cab. sin tensión. `;
-        if (others.length) msg += `Otros: ${others.join(", ")}`;
-        item.textContent = msg;
-        warnEl.appendChild(item);
-      }
-
-      // Debug: convergence history (plot + table)
-      const fullHistory = [];
-      let iterOffset = 0;
-      (res.history || []).forEach(phase => {
-        if (phase.convergenceHistory) {
-          phase.convergenceHistory.forEach(h => {
-            fullHistory.push({ ...h, iter: h.iter + iterOffset });
-          });
-          iterOffset = fullHistory.length;
+  // Cancel button handler
+  const cancelBtn = byId("cancelBtn");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", async () => {
+      if (snipeApi.cancelSimulation) {
+        const result = await snipeApi.cancelSimulation();
+        if (result.cancelled) {
+          hideLiveMetrics();
+          setRigStatus("Simulacion cancelada");
         }
-      });
-      lastConvergenceHistory = fullHistory;
-      lastConvergenceTol = payload.solver?.toleranceN ?? null;
-      plotConvergenceHistory(byId("plotConvergence"), lastConvergenceHistory, { tol: lastConvergenceTol });
-      renderConvergenceLegend(lastConvergenceHistory, lastConvergenceTol);
-      renderConvergenceTable(lastConvergenceHistory);
-
-      if (!res.outputs) {
-        setRigStatus(res.reason || "Error en el cálculo");
-        return;
       }
-
-      const hasMain = !!res.outputs.sails?.loaded?.main;
-      const hasJib = !!res.outputs.sails?.loaded?.jib;
-      if (hasMain || hasJib) {
-        let msg = "Simulación lista. Malla: ";
-        if (hasMain) {
-          const m = res.outputs.sails.loaded.main;
-          msg += `Mayor ${m.length - 1}x${m[0].length - 1} `;
-        }
-        if (hasJib) {
-          const j = res.outputs.sails.loaded.jib;
-          msg += `Foque ${j.length - 1}x${j[0].length - 1}`;
-        }
-        setRigStatus(msg);
-      } else {
-        setRigStatus("Simulación lista.");
-      }
-
-      // 2. Tensiones
-      const t = res.outputs.tensions || {};
-      const formatKN = (n) => (n / 1000).toFixed(2) + " kN";
-      const formatN = (n) => (n || 0).toFixed(1) + " N";
-
-      const formatKNSlack = (id, flagId, n) => {
-        const val = formatKN(n);
-        const el = byId(id);
-        const flag = byId(flagId);
-        if (el) {
-          el.textContent = val;
-          const isSlack = n < 1.0; // Menos de 1 Newton se considera flojo (slack)
-          el.classList.toggle("slack", isSlack);
-          if (flag) flag.hidden = !isSlack;
-        }
-      };
-      formatKNSlack("res-shroud-port", "flag-shroud-port", t.shroudPortN);
-      formatKNSlack("res-shroud-stbd", "flag-shroud-stbd", t.shroudStbdN);
-      formatKNSlack("res-stay", "flag-stay", t.forestayN);
-
-      // 3. Spreader
-      const s = res.outputs.spreaders;
-      const xOutTt = Math.sqrt(Math.max(0, c.spreaderLengthM ** 2 - c.spreaderSweepAftM ** 2));
-      const tip2TipMm = 2 * xOutTt * 1000;
-      const flechaMm = c.spreaderSweepAftM * 1000;
-      setResValue("res-tip-tip", `${tip2TipMm.toFixed(0)} mm`);
-      setResValue("res-flecha", `${flechaMm.toFixed(1)} mm`);
-      setResValue("res-axial-port", formatN(s.portAxialN));
-      setResValue("res-axial-stbd", formatN(s.stbdAxialN));
-
-      // 4. Equilibrio
-      const eq = res.outputs.equilibrium || {};
-      const eqSumFx = Number.isFinite(eq.openSumFx) ? eq.openSumFx : eq.sumFx;
-      const eqSumFy = Number.isFinite(eq.openSumFy) ? eq.openSumFy : eq.sumFy;
-      const eqMag = Number.isFinite(eq.openMagnitude) ? eq.openMagnitude : eq.magnitude;
-      const eqBalanced = typeof eq.openIsBalanced === "boolean" ? eq.openIsBalanced : eq.isBalanced;
-
-      setStatus("equilibrium-status", eqBalanced ? "success" : "error", eqBalanced ? "Equilibrado" : "Revisar");
-      setResValue("res-ext-fx", `${eq.externalFx?.toFixed(1) ?? "0"} N`);
-      setResValue("res-ext-fy", `${eq.externalFy?.toFixed(1) ?? "0"} N`);
-      const rzVal = `${((eq.mastStepRz ?? 0) / 1000).toFixed(2)} kN`;
-      setResValue("res-base-rz", rzVal);
-      setResValue("res-base-rz-duplicate", rzVal);
-      setResValue("res-partners-fx", `${eq.partnersRx?.toFixed(1) ?? "0"} N`);
-      setResValue("res-sum-fx", `${Number.isFinite(eqSumFx) ? eqSumFx.toFixed(1) : "?"} N`);
-      setResValue("res-sum-fy", `${Number.isFinite(eqSumFy) ? eqSumFy.toFixed(1) : "?"} N`);
-      setResValue("res-sum-mag", `${Number.isFinite(eqMag) ? eqMag.toFixed(1) : "?"} N`);
-
-      // Backward compatibility (old hidden pre tags)
-      byId("solverOut").textContent = [...warnings, `converged: ${res.converged}`].join("\n");
-      byId("tensionsOut").textContent = `shroud port: ${formatKN(t.shroudPortN)}\nshroud stbd: ${formatKN(t.shroudStbdN)}`;
-
-      const out = res.outputs;
-      const relaxedXZ = (out.mastCurveRelaxed || []).map((p) => ({ z: p.z, value: p.x }));
-      const prebendXZ = (out.mastCurvePrebend || []).map((p) => ({ z: p.z, value: p.x }));
-      const loadedXZ = (out.mastCurveLoaded || []).map((p) => ({ z: p.z, value: p.x }));
-      plotCurve(byId("plotXZ"), [relaxedXZ, prebendXZ, loadedXZ], { axisLabel: "x", geometry: payload.geometry });
-
-      const relaxedYZ = (out.mastCurveRelaxed || []).map((p) => ({ z: p.z, value: p.y }));
-      const prebendYZ = (out.mastCurvePrebend || []).map((p) => ({ z: p.z, value: p.y }));
-      const loadedYZ = (out.mastCurveLoaded || []).map((p) => ({ z: p.z, value: p.y }));
-      plotCurve(byId("plotYZ"), [relaxedYZ, prebendYZ, loadedYZ], { axisLabel: "y", geometry: payload.geometry });
-
-      updateRigPanel(payload, res, presets[currentPresetIdx]);
-
-      exportJsonBtn.disabled = false;
-      exportCsvBtn.disabled = false;
-    } catch (err) {
-      console.error(err);
-      setRigStatus("Fallo al calcular");
-      setStatus("converged-status", "error", "Error");
-      setStatus("converged-status-summary", "error", "Error");
-    }
-  });
+    });
+  }
 
   exportJsonBtn.addEventListener("click", async () => {
     if (!lastResults) return;

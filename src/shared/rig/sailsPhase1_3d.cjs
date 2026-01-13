@@ -564,7 +564,8 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
    * Pero necesitamos una pretensión MENOR que la tensión de equilibrio
    * para que la membrana pueda deformarse. Típico: 5-10% de la tensión esperada.
    */
-  const membraneE = constants.membraneE ?? 5e7;           // 50 MPa
+  // Típico Dacron: 0.5-1.0 GPa. Para alta rigidez (fibras): 2.0-3.0 GPa
+  const membraneE = constants.membraneE ?? 2.5e9;           // 2.5 GPa (Dacron)
   const membraneNu = constants.membraneNu ?? 0.3;
   const membraneThickness = constants.membraneThickness ?? 0.00025;  // 0.25 mm
 
@@ -576,21 +577,32 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
   const maxPressure = Math.max(cfg.windPressurePa, 50); // Mínimo 50 Pa para estabilidad
   const expectedEquilibriumStress = (maxPressure * expectedCurvatureRadius) / (2 * membraneThickness);
 
-  // Pretensión: 5-10% de la tensión de equilibrio esperada
-  // Esto proporciona rigidez geométrica inicial sin impedir la deformación
-  const pretensionFraction = constants.membranePretensionFraction ?? 0.08;
+  // Pretensión: SOLO para estabilidad numérica, NO proporcional a loadScale
+  // La pretensión proporcional a loadScale causa discontinuidad y explosión numérica.
+  // La fuerza principal sobre la membrana viene de effPressure (presión de viento),
+  // que ya tiene un ramp interno en el solver (pressureRampIters).
+  const pretensionFraction = constants.membranePretensionFraction ?? 0.10; // Reducido: 50% era demasiado alto
   const membranePrestress = constants.membranePrestress ?? (expectedEquilibriumStress * pretensionFraction);
+  console.log(`SAIL MEMBRANE: prestress=${membranePrestress.toFixed(0)} Pa (fraction=${pretensionFraction}, eqStress=${expectedEquilibriumStress.toFixed(0)})`);
 
   // Wrinkling epsilon: rigidez residual en compresión (Tension Field Theory)
   // Valor típico: 1e-4 (muy pequeño pero no cero para estabilidad numérica)
   const wrinklingEps = constants.membraneWrinklingEps ?? 1e-4;
+  const membraneMaxStrain = constants.membraneMaxStrain ?? 2.0;
+
+  // Rigidez espúrea para estabilizar flexión - DESHABILITADA
+  // La pretensión de membrana debería proporcionar suficiente estabilidad
+  // Los springs de estabilización causaban conflicto con el movimiento del mástil
+  // porque intentaban mantener los nodos en p0 (posición inicial, no deformada)
+  const spuriousK = 0;  // DESHABILITADO - era: (membraneE * membraneThickness) / 100.0;
 
   const membraneMaterial = {
     E: membraneE,
     nu: membraneNu,
     thickness: membraneThickness,
     prestress: membranePrestress,
-    wrinklingEps: wrinklingEps
+    wrinklingEps: wrinklingEps,
+    maxStrain: membraneMaxStrain
   };
 
   model.sails = { cfg, main: null, jib: null };
@@ -696,12 +708,23 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
       nu: membraneMaterial.nu,
       thickness: membraneMaterial.thickness,
       prestress: membraneMaterial.prestress,
-      wrinklingEps: membraneMaterial.wrinklingEps
+      wrinklingEps: membraneMaterial.wrinklingEps,
+      maxStrain: membraneMaterial.maxStrain
     });
 
     // Añadir membranas al modelo
     model.membranes = model.membranes || [];
     model.membranes.push(...mainMembranes);
+
+    // Estabilización espúrea (bending stiffness proxy)
+    addShapeSpringsForGrid3d({
+      model,
+      grid,
+      kx: spuriousK,
+      ky: spuriousK * 0.01,
+      kz: spuriousK * 0.01,
+      namePrefix: "stab_main"
+    });
 
     model.sails.main = { gridNodeIds: grid, nRows, nCols, boomNodeIds, membraneCount: mainMembranes.length };
   }
@@ -798,7 +821,7 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
      * 300N es aproximadamente el peso de 30 kg - suficiente para
      * mantener el cable tenso pero no excesivo para el aparejo.
      */
-    const MIN_STAY_TENSION_N = 300; // 0.3 kN mínimo para estabilidad
+    const MIN_STAY_TENSION_N = 50; // Reducido a 50N para evitar colapso en fases iniciales (pretension baja)
 
     let L0ratio;
     if (stay.kind === "tension") {
@@ -813,6 +836,10 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
       const minL0ratio = 1 / (1 + MIN_STAY_TENSION_N / rigEA);
       L0ratio = Math.min(originalL0ratio, minL0ratio); // Más corto = más tensión
     }
+    // console.log(`DEBUG sailsPhase1: stay replacement. Kind=${stay.kind}, N=${stay.N}, L=${Lsum.toFixed(3)}, stay.L0=${stay.L0?.toFixed(3)}, ratio=${L0ratio.toFixed(6)}, L0calc=${(Lsum * L0ratio).toFixed(3)}`);
+
+
+
 
     // Crear segmentos de cable elástico para el stay
     for (let k = 0; k < stayNodeIds.length - 1; k++) {
@@ -880,12 +907,23 @@ function applySailsPhase1ToModel3d({ model, geometry, state, constants, sails })
       nu: membraneMaterial.nu,
       thickness: membraneMaterial.thickness,
       prestress: membraneMaterial.prestress,
-      wrinklingEps: membraneMaterial.wrinklingEps
+      wrinklingEps: membraneMaterial.wrinklingEps,
+      maxStrain: membraneMaterial.maxStrain
     });
 
     // Añadir membranas al modelo
     model.membranes = model.membranes || [];
     model.membranes.push(...jibMembranes);
+
+    // Estabilización espúrea (bending stiffness proxy)
+    addShapeSpringsForGrid3d({
+      model,
+      grid,
+      kx: spuriousK,
+      ky: spuriousK * 0.01,
+      kz: spuriousK * 0.01,
+      namePrefix: "stab_jib"
+    });
 
     model.sails.jib = { gridNodeIds: grid, nRows, nCols, stayNodeIds, membraneCount: jibMembranes.length };
   }

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SnipeDesign Mobile</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <header class="app-header">
+            <div class="logo">SnipeDesign <span>Mobile</span></div>
+            <div class="header-actions">
+                <select id="presetSelect" class="preset-dropdown"></select>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <main class="app-content">
+                <section class="viewer-section">
+                    <div class="canvas-container">
+                        <canvas id="mobileCanvas"></canvas>
+                        <div class="profiles-overlay">
+                            <div class="profile-box">
+                                <span class="profile-label">FRONT</span>
+                                <canvas id="frontProfileCanvas"></canvas>
+                            </div>
+                            <div class="profile-box">
+                                <span class="profile-label">SIDE</span>
+                                <canvas id="sideProfileCanvas"></canvas>
+                            </div>
+                        </div>
+                        <div id="canvasStatus" class="canvas-status">Esperando simulación...</div>
+                        <div id="rig3dStatus" class="rig3dStatus"></div>
+                        <div id="statsOverlay" class="stats-overlay">
+                            <div class="stat-item"><span>Stay:</span> <span id="overlay-stay">--</span></div>
+                            <div class="stat-item"><span>Shroud:</span> <span id="overlay-shrouds">--</span></div>
+                            <div class="stat-item"><span>Defl:</span> <span id="overlay-defl">--</span></div>
+                        </div>
+                        <!-- Corner decorations -->
+                        <div class="viewer-corner tl"></div>
+                        <div class="viewer-corner tr"></div>
+                        <div class="viewer-corner bl"></div>
+                        <div class="viewer-corner br"></div>
+                    </div>
+                    <div class="view-controls">
+                        <button class="pov-btn" data-pov="side">Perfil</button>
+                        <button class="pov-btn" data-pov="front">Frontal</button>
+                        <button class="pov-btn" data-pov="top">Planta</button>
+                        <button class="pov-btn" data-pov="iso">3D</button>
+                        <button id="resetView" class="pov-btn" title="Centrar Vista">🎯</button>
+                        <div class="zoom-controls">
+                            <button id="zoomIn" title="Acercar">＋</button>
+                            <button id="zoomOut" title="Alejar">－</button>
+                            <button id="fitZoom" title="Ajustar Zoom">🎯</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Dashboard de Resultados Mejorado -->
+                <section class="results-section">
+                    <h3 class="section-title">📊 Resultados</h3>
+
+                    <!-- Alertas de Slack -->
+                    <div id="slack-alerts" class="slack-alerts"></div>
+
+                    <div class="result-cards">
+                        <!-- Tensiones Jarcia -->
+                        <div class="card card-wide">
+                            <span class="card-label">⛵ Tensiones Jarcia</span>
+                            <div class="tension-grid">
+                                <div class="tension-item">
+                                    <span class="tension-label">Obenque Babor</span>
+                                    <span id="res-shroud-port" class="tension-value">--</span>
+                                </div>
+                                <div class="tension-item">
+                                    <span class="tension-label">Obenque Estribor</span>
+                                    <span id="res-shroud-stbd" class="tension-value">--</span>
+                                </div>
+                                <div class="tension-item">
+                                    <span class="tension-label">Forestay / Driza</span>
+                                    <span id="res-stay" class="tension-value">--</span>
+                                </div>
+                                <div class="tension-item">
+                                    <span class="tension-label">Cruceta Babor</span>
+                                    <span id="res-spr-port" class="tension-value">--</span>
+                                </div>
+                                <div class="tension-item">
+                                    <span class="tension-label">Cruceta Estribor</span>
+                                    <span id="res-spr-stbd" class="tension-value">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reacciones -->
+                        <div class="card card-wide">
+                            <span class="card-label">⚓ Reacciones Apoyos</span>
+                            <div class="reaction-grid">
+                                <div class="reaction-item">
+                                    <span class="reaction-label">Fogonadura X</span>
+                                    <span id="res-partners-rx" class="reaction-value">--</span>
+                                </div>
+                                <div class="reaction-item">
+                                    <span class="reaction-label">Fogonadura Y</span>
+                                    <span id="res-partners-ry" class="reaction-value">--</span>
+                                </div>
+                                <div class="reaction-item">
+                                    <span class="reaction-label">Pie de Palo X</span>
+                                    <span id="res-step-rx" class="reaction-value">--</span>
+                                </div>
+                                <div class="reaction-item">
+                                    <span class="reaction-label">Pie de Palo Y</span>
+                                    <span id="res-step-ry" class="reaction-value">--</span>
+                                </div>
+                                <div class="reaction-item">
+                                    <span class="reaction-label">Axial Palo</span>
+                                    <span id="res-step-rz" class="reaction-value">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equilibrio -->
+                        <div class="card">
+                            <span class="card-label">⚖️ Equilibrio</span>
+                            <div class="equilibrium-info">
+                                <div class="eq-row">
+                                    <span>Residuo:</span>
+                                    <span id="res-eq-magnitude" class="eq-value">--</span>
+                                </div>
+                                <div id="res-eq-status" class="eq-status eq-ok">✓ Balanceado</div>
+                            </div>
+                        </div>
+
+                        <!-- Deflexión -->
+                        <div class="card">
+                            <span class="card-label">📐 Deflexión Máx</span>
+                            <div class="card-values">
+                                <div class="value-main" id="res-flecha">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-section">
+                    <h3 class="section-title">⚙️ Ajustes</h3>
+                    <div class="accordion">
+                        <!-- Geometría del Palo -->
+                        <details open>
+                            <summary>📏 Geometría del Palo</summary>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label>Mástil L (mm)</label>
+                                    <input type="range" id="mastLengthMmSlider" min="6450" max="6550" step="1"
+                                        value="6500">
+                                    <span class="val-display" id="val-mastLengthMm">6500</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Fogonadura Z (mm)</label>
+                                    <input type="range" id="partnersZMmSlider" min="300" max="500" step="1" value="395">
+                                    <span class="val-display" id="val-partnersZMm">395</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Crucetas Z (mm)</label>
+                                    <input type="range" id="spreaderZMmSlider" min="2000" max="3000" step="1"
+                                        value="2500">
+                                    <span class="val-display" id="val-spreaderZMm">2500</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Driza Z (mm)</label>
+                                    <input type="range" id="houndsZMmSlider" min="4100" max="5100" step="1"
+                                        value="4800">
+                                    <span class="val-display" id="val-houndsZMm">4800</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Chainplate X (mm)</label>
+                                    <input type="range" id="chainplateXMmSlider" min="500" max="600" step="1"
+                                        value="550">
+                                    <span class="val-display" id="val-chainplateXMm">550</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Chainplate Y (mm)</label>
+                                    <input type="range" id="chainplateYMmSlider" min="-500" max="250" step="1"
+                                        value="-363">
+                                    <span class="val-display" id="val-chainplateYMm">-363</span>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Rigidez del Palo -->
+                        <details>
+                            <summary>🔧 Rigidez y Conicidad</summary>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label>EI Base (N·m²)</label>
+                                    <input type="range" id="mastEIBaseSlider" min="4000" max="10000" step="100"
+                                        value="7500">
+                                    <span class="val-display" id="val-mastEIBase">7500</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>EI Tope (N·m²)</label>
+                                    <input type="range" id="mastEITopSlider" min="2000" max="6000" step="100"
+                                        value="3500">
+                                    <span class="val-display" id="val-mastEITop">3500</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Inicio Conicidad (mm)</label>
+                                    <input type="range" id="taperStartZMmSlider" min="4000" max="5500" step="50"
+                                        value="4500">
+                                    <span class="val-display" id="val-taperStartZMm">4500</span>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Configuración Jarcia -->
+                        <details>
+                            <summary>🔗 Configuración Jarcia</summary>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label>Crucetas: Largo (mm)</label>
+                                    <input type="range" id="spreaderLengthMmSlider" min="300" max="1000" step="1"
+                                        value="450">
+                                    <span class="val-display" id="val-spreaderLengthMm">450</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Crucetas: Ángulo (°)</label>
+                                    <input type="range" id="spreaderAngleSlider" min="-20" max="50" step="0.5"
+                                        value="8.4">
+                                    <span class="val-display" id="val-spreaderAngle">8.4</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Pletina Obenques (mm)</label>
+                                    <input type="range" id="shroudBaseDeltaMmSlider" min="-50" max="100" step="1"
+                                        value="0">
+                                    <span class="val-display" id="val-shroudBaseDeltaMm">0</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Fogonadura Y (mm)</label>
+                                    <input type="range" id="partnersOffsetYSlider" min="-25" max="25" step="1"
+                                        value="0">
+                                    <span class="val-display" id="val-partnersOffsetY">0</span>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Condiciones de Navegación -->
+                        <details>
+                            <summary>🌊 Condiciones Navegación</summary>
+                            <div class="settings-grid">
+                                <div class="input-group">
+                                    <label>Tensión Stay (kN)</label>
+                                    <input type="range" id="jibHalyardTensionkNSlider" min="0" max="2" step="0.01"
+                                        value="0">
+                                    <span class="val-display" id="val-jibHalyardTensionkN">0</span>
+                                </div>
+                                <div class="input-group">
+                                    <label>Modo de Carga</label>
+                                    <select id="loadMode" class="form-select">
+                                        <option value="none">Sin carga</option>
+                                        <option value="upwind">Upwind</option>
+                                        <option value="downwind">Downwind</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>Carga lateral (N/m)</label>
+                                    <input type="range" id="qLateralSlider" min="0" max="1000" step="10" value="0">
+                                    <span class="val-display" id="val-qLateral">0</span>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+            </main>
+        </div>
+
+        <button id="runBtn" class="fab">
+            <span class="icon">🚀</span>
+        </button>
+
+        <div id="toast" class="toast">Simulación completada</div>
+    </div>
+    <script src="mobile-app.js"></script>
+</body>
+
+</html>

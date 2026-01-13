@@ -1,5 +1,10 @@
 const { clamp, sub3, norm3, dot3, add3, scale3 } = require("./math3.cjs");
 
+// Interpolación lineal
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
 /**
  * MODELO 3D DEL MASTIL - Phase 1 con 3 DOF por nodo (x, y, z)
  *
@@ -178,65 +183,111 @@ function buildPhase1Model3d({ geometry, controls, solver, state, constants }) {
     kind: "bar"
   });
 
+  // HELPER PARA DISCRETIZAR CABLES
+  const nCableSeg = solver.cableSegments || 1;
+
+  const addDiscretizedLine = (name, nodeAId, nodeBId, EA, L0_total, kind, nodesArray, axialArray) => {
+    if (nCableSeg <= 1) {
+      axialArray.push({ name, i: nodeAId, j: nodeBId, EA, L0: L0_total, kind, smoothDeltaM: rigSmoothDeltaM });
+      return;
+    }
+    const pA = nodesArray[nodeAId].p0;
+    const pB = nodesArray[nodeBId].p0;
+    let lastId = nodeAId;
+    for (let i = 1; i <= nCableSeg; i++) {
+      const t = i / nCableSeg;
+      const p = [lerp(pA[0], pB[0], t), lerp(pA[1], pB[1], t), lerp(pA[2], pB[2], t)];
+      const nextId = (i === nCableSeg) ? nodeBId : addNode(`${name}_node_${i}`, p, false);
+      axialArray.push({
+        name: `${name}_seg_${i}`,
+        i: lastId,
+        j: nextId,
+        EA,
+        L0: L0_total / nCableSeg,
+        kind: "cable",
+        smoothDeltaM: rigSmoothDeltaM
+      });
+      lastId = nextId;
+    }
+  };
+
   // SHROUDS
-  const computeShroudL0Total = (deltaTotalM, baseDeltaM, side) => {
+  const computeShroudL0Path = (side) => {
     const tipId = side === "port" ? tipPortId : tipStbdId;
     const chainId = side === "port" ? chainPortId : chainStbdId;
     const LUpper = norm3(sub3(nodes[tipId].p0, nodes[shroudAttachNodeId].p0));
     const LLower = norm3(sub3(nodes[chainId].p0, nodes[tipId].p0));
-    const L_path = LUpper + LLower;
-    return L_path - (baseDeltaM + deltaTotalM);
+    return { LUpper, LLower };
   };
 
   const standingScale = Number.isFinite(state?.standingScale) ? state.standingScale : 1;
   const shroudBaseDelta = standingScale * (controls.shroudBaseDeltaM || 0);
   const shroudDeltaPort = standingScale * (controls.shroudDeltaL0PortM || 0);
   const shroudDeltaStbd = standingScale * (controls.shroudDeltaL0StbdM || 0);
-  const shroudPortL0 = computeShroudL0Total(shroudDeltaPort, shroudBaseDelta, "port");
-  const shroudStbdL0 = computeShroudL0Total(shroudDeltaStbd, shroudBaseDelta, "stbd");
 
-  addAxial({
-    name: "shroud_port",
-    i: shroudAttachNodeId,
-    k: tipPortId,
-    j: chainPortId,
-    EA: rigEA,
-    L0: shroudPortL0,
-    smoothDeltaM: rigSmoothDeltaM,
-    kind: "cable_path"
-  });
-  addAxial({
-    name: "shroud_stbd",
-    i: shroudAttachNodeId,
-    k: tipStbdId,
-    j: chainStbdId,
-    EA: rigEA,
-    L0: shroudStbdL0,
-    smoothDeltaM: rigSmoothDeltaM,
-    kind: "cable_path"
-  });
+  const pathPort = computeShroudL0Path("port");
+  const pathStbd = computeShroudL0Path("stbd");
+
+  const totalL0Port = (pathPort.LUpper + pathPort.LLower) - (shroudBaseDelta + shroudDeltaPort);
+  const totalL0Stbd = (pathStbd.LUpper + pathStbd.LLower) - (shroudBaseDelta + shroudDeltaStbd);
+
+  // Proporción de L0 para cada tramo (asumiendo estiramiento uniforme o simplemente geométrica)
+  const ratioUpperPort = pathPort.LUpper / (pathPort.LUpper + pathPort.LLower);
+  const ratioUpperStbd = pathStbd.LUpper / (pathStbd.LUpper + pathStbd.LLower);
+
+  if (nCableSeg <= 1) {
+    addAxial({ name: "shroud_port", i: shroudAttachNodeId, k: tipPortId, j: chainPortId, EA: rigEA, L0: totalL0Port, kind: "cable_path", smoothDeltaM: rigSmoothDeltaM });
+    addAxial({ name: "shroud_stbd", i: shroudAttachNodeId, k: tipStbdId, j: chainStbdId, EA: rigEA, L0: totalL0Stbd, kind: "cable_path", smoothDeltaM: rigSmoothDeltaM });
+  } else {
+    // Dividimos los 50 segmentos entre los dos tramos (proporcionalmente o 25/25)
+    const nUp = Math.round(nCableSeg / 2);
+    const nLow = nCableSeg - nUp;
+
+    const oldNCableSeg = solver.cableSegments;
+    // Reutilizamos addDiscretizedLine temporalmente cambiando nCableSeg? No, mejor pasarla.
+    const addCustomDisc = (name, n, nA, nB, ea, l0) => {
+      const pA = nodes[nA].p0;
+      const pB = nodes[nB].p0;
+      let last = nA;
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        const p = [lerp(pA[0], pB[0], t), lerp(pA[1], pB[1], t), lerp(pA[2], pB[2], t)];
+        const next = (i === n) ? nB : addNode(`${name}_node_${i}`, p, false);
+        addAxial({ name: `${name}_seg_${i}`, i: last, j: next, EA: ea, L0: l0 / n, kind: "cable", smoothDeltaM: rigSmoothDeltaM });
+        last = next;
+      }
+    };
+
+    addCustomDisc("shroud_port_up", nUp, shroudAttachNodeId, tipPortId, rigEA, totalL0Port * ratioUpperPort);
+    addCustomDisc("shroud_port_low", nLow, tipPortId, chainPortId, rigEA, totalL0Port * (1 - ratioUpperPort));
+    addCustomDisc("shroud_stbd_up", nUp, shroudAttachNodeId, tipStbdId, rigEA, totalL0Stbd * ratioUpperStbd);
+    addCustomDisc("shroud_stbd_low", nLow, tipStbdId, chainStbdId, rigEA, totalL0Stbd * (1 - ratioUpperStbd));
+  }
 
   // FORESTAY
   const stayTensionTarget = Math.max(0, (state.halyardScale || 0) * (controls.jibHalyardTensionN || 0));
   const lockStay = controls.lockStayLength === true;
 
-  if (lockStay && stayTensionTarget > 0) {
+  if ((lockStay || nCableSeg > 1) && stayTensionTarget > 0) {
     const p1 = nodes[houndsNodeId].p0;
     const p2 = nodes[bowId].p0;
     const L_current = norm3(sub3(p2, p1));
-    // T = EA * (L - L0) / L0  =>  T*L0 = EA*L - EA*L0  => L0(T + EA) = EA*L
     const L0_stay = (rigEA * L_current) / (rigEA + stayTensionTarget);
 
-    addAxial({
-      name: "stay_jib",
-      i: houndsNodeId,
-      j: bowId,
-      EA: rigEA,
-      L0: L0_stay,
-      kind: "cable",
-      smoothDeltaM: rigSmoothDeltaM
-    });
+    if (nCableSeg <= 1) {
+      addAxial({ name: "stay_jib", i: houndsNodeId, j: bowId, EA: rigEA, L0: L0_stay, kind: "cable", smoothDeltaM: rigSmoothDeltaM });
+    } else {
+      let last = houndsNodeId;
+      for (let i = 1; i <= nCableSeg; i++) {
+        const t = i / nCableSeg;
+        const p = [lerp(p1[0], p2[0], t), lerp(p1[1], p2[1], t), lerp(p1[2], p2[2], t)];
+        const next = (i === nCableSeg) ? bowId : addNode(`stay_jib_node_${i}`, p, false);
+        addAxial({ name: `stay_jib_seg_${i}`, i: last, j: next, EA: rigEA, L0: L0_stay / nCableSeg, kind: "cable", smoothDeltaM: rigSmoothDeltaM });
+        last = next;
+      }
+    }
   } else {
+    // Si no está bloqueado ni discretizado, se trata como una fuerza de tensión pura
     addAxial({
       name: "stay_jib",
       i: houndsNodeId,
@@ -246,19 +297,33 @@ function buildPhase1Model3d({ geometry, controls, solver, state, constants }) {
     });
   }
 
+  // Partners offset solo aplica cuando hay tensión REAL en el sistema
+  // Con tensión 0 (estado relajado), el palo debe quedarse recto sin fuerzas forzadas
+  // Usamos una rampa suave: offset aumenta linealmente de 0 a 100% cuando tensión sube de 0 a 500N
+  const tensionRampN = 500; // A partir de 500N de tensión, el offset es completo
+  const systemActive = stayTensionTarget > 0 ? Math.min(1, stayTensionTarget / tensionRampN) : 0;
+  const scaledPartnersOffsetX = systemActive * (controls.partnersOffsetXM || 0);
+  const scaledPartnersOffsetY = systemActive * (controls.partnersOffsetYM || 0);
+
   const springs = [
     {
       name: "partners_spring",
       nodeId: partnersNodeId,
       kx: controls.partnersKx,
       ky: controls.partnersKy,
-      kz: partnersKz
+      kz: partnersKz,
+      targetX: scaledPartnersOffsetX,
+      targetY: scaledPartnersOffsetY
     }
   ];
 
-  const spreaderSweepK = constants.spreaderSweepK ?? Math.min(1e9, spreaderEA / Math.max(1e-6, spreaderLengthM));
-  springs.push({ name: "spreader_sweep_port", nodeIdA: tipPortId, nodeIdB: spreaderRootId, kx: 0, ky: spreaderSweepK, kz: spreaderSweepK });
-  springs.push({ name: "spreader_sweep_stbd", nodeIdA: tipStbdId, nodeIdB: spreaderRootId, kx: 0, ky: spreaderSweepK, kz: spreaderSweepK });
+  // CRUCETAS: Conexión rígida (sin springs)
+  // La unión cruceta-mástil transfiere los 6 DOF. El bar element ya mantiene
+  // la distancia fija. La posición del tip se determina por:
+  // 1. El bar element (distancia fija desde root)
+  // 2. La tensión del obenque que pasa por el tip (el cable corre por un agujero)
+  // 3. La geometría inicial (sweep angle)
+  // NO hay springs adicionales - la física real posiciona el tip.
 
   // FUERZAS EXTERNAS
   const forces = new Array(nodes.length).fill(null).map(() => [0, 0, 0]);

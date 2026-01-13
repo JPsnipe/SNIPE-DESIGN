@@ -15,10 +15,41 @@
       <select id="presetSelect"></select>
       <label class="auto-toggle"><input type="checkbox" id="autoUpdate" /> Auto</label>
       <button id="runBtn">Simular</button>
+      <button id="cancelBtn" hidden>Cancelar</button>
       <button id="exportJsonBtn" disabled>Export JSON</button>
       <button id="exportCsvBtn" disabled>Export CSV</button>
     </div>
   </header>
+
+  <!-- Live Metrics Panel -->
+  <div id="liveMetricsPanel" class="live-metrics-panel" hidden>
+    <div class="live-metrics-header">
+      <span class="live-indicator"></span>
+      <span class="live-title">Solver en progreso</span>
+      <span id="liveElapsed" class="live-elapsed">0.0s</span>
+    </div>
+    <div class="live-metrics-grid">
+      <div class="live-metric">
+        <span class="live-label">Energía</span>
+        <span id="liveEnergy" class="live-value">--</span>
+      </div>
+      <div class="live-metric">
+        <span class="live-label">Gradiente Max</span>
+        <span id="liveGradMax" class="live-value">--</span>
+      </div>
+      <div class="live-metric">
+        <span class="live-label">dt</span>
+        <span id="liveDt" class="live-value">--</span>
+      </div>
+      <div class="live-metric">
+        <span class="live-label">Masa [min, max]</span>
+        <span id="liveMassRange" class="live-value">--</span>
+      </div>
+    </div>
+    <div class="live-progress-bar">
+      <div id="liveProgressFill" class="live-progress-fill"></div>
+    </div>
+  </div>
 
   <main class="layout">
     <section class="panel">
@@ -114,6 +145,20 @@
               <input id="taperStartZMmSlider" type="range" min="4000" max="5500" step="50" />
             </div>
           </label>
+          <label class="field">
+            <span>Fogonadura Kx (kN/m) <label class="inline-toggle"><input type="checkbox" id="partnersReleaseX" /> Soltar X</label></span>
+            <div class="field-row">
+              <input id="partnersKx" type="number" step="1" />
+              <input id="partnersKxSlider" type="range" min="0" max="250" step="1" />
+            </div>
+          </label>
+          <label class="field">
+            <span>Fogonadura Ky (kN/m) <label class="inline-toggle"><input type="checkbox" id="partnersReleaseY" /> Soltar Y</label></span>
+            <div class="field-row">
+              <input id="partnersKy" type="number" step="1" />
+              <input id="partnersKySlider" type="range" min="0" max="250" step="1" />
+            </div>
+          </label>
         </div>
       </details>
 
@@ -124,7 +169,7 @@
             <span>Spreader length (mm)</span>
             <div class="field-row">
               <input id="spreaderLengthMm" type="number" step="1" />
-              <input id="spreaderLengthMmSlider" type="range" min="300" max="600" step="1" />
+              <input id="spreaderLengthMmSlider" type="range" min="300" max="1000" step="1" />
             </div>
           </label>
           <label class="field">
@@ -138,7 +183,7 @@
             <span>Pletina Obenques (mm) <span class="hint">(cambio base L0)</span></span>
             <div class="field-row">
               <input id="shroudBaseDeltaMm" type="number" step="1" placeholder="0" />
-              <input id="shroudBaseDeltaMmSlider" type="range" min="-50" max="50" step="1" />
+              <input id="shroudBaseDeltaMmSlider" type="range" min="-50" max="100" step="1" />
             </div>
           </label>
           <label class="field">
@@ -157,17 +202,17 @@
           </label>
 
           <label class="field">
-            <span>Fogonadura kx (kN/m)</span>
+            <span>Fogonadura X (mm) <span class="hint">(empuje lateral)</span></span>
             <div class="field-row">
-              <input id="partnersKx" type="number" step="1" />
-              <input id="partnersKxSlider" type="range" min="0" max="100" step="1" />
+              <input id="partnersOffsetX" type="number" step="1" placeholder="0" />
+              <input id="partnersOffsetXSlider" type="range" min="-25" max="25" step="1" />
             </div>
           </label>
           <label class="field">
-            <span>Fogonadura ky (kN/m)</span>
+            <span>Fogonadura Y (mm) <span class="hint">(empuje proa/popa)</span></span>
             <div class="field-row">
-              <input id="partnersKy" type="number" step="1" />
-              <input id="partnersKySlider" type="range" min="0" max="100" step="1" />
+              <input id="partnersOffsetY" type="number" step="1" placeholder="0" />
+              <input id="partnersOffsetYSlider" type="range" min="-25" max="25" step="1" />
             </div>
           </label>
         </div>
@@ -505,8 +550,10 @@
       <details>
         <summary>Solver</summary>
         <div class="grid">
-          <label>N mast segments<input id="mastSegments" type="number" step="1" min="6" max="200" value="100"
-              placeholder="100" /></label>
+          <label>N mast segments<input id="mastSegments" type="number" step="1" min="6" max="500" value="250"
+              placeholder="250" /></label>
+          <label>N cable segments<input id="cableSegments" type="number" step="1" min="1" max="100" value="50"
+              placeholder="50" /></label>
           <label>Pretension steps<input id="pretensionSteps" type="number" step="1" min="1" max="30" /></label>
           <label>Load steps<input id="loadSteps" type="number" step="1" min="1" max="30" /></label>
           <label>Max iters<input id="maxIters" type="number" step="1" min="10" max="500" /></label>
@@ -515,6 +562,28 @@
           <label>Sail damping (inicial)<input id="sailDamping" type="number" step="0.001" min="0" max="1" /></label>
           <label>Sail damping decay<input id="sailDampingDecay" type="number" step="0.01" min="0.5"
               max="0.99" /></label>
+        </div>
+      </details>
+
+      <details>
+        <summary>Estabilizacion avanzada</summary>
+        <div class="grid">
+          <label>DR time step<input id="drTimeStep" type="number" step="0.0001" min="0.0001" /></label>
+          <label>DR debug logs<input id="drDebug" type="checkbox" /></label>
+          <label>DR viscous damping<input id="drViscousDamping" type="number" step="0.01" min="0" max="0.5" /></label>
+          <label>DR warmup iters<input id="drWarmupIters" type="number" step="1" min="0" max="5000" /></label>
+          <label>DR kinetic backtrack<input id="drKineticBacktrack" type="number" step="0.05" min="0" max="1" /></label>
+          <label>DR max step (m, 0=auto)<input id="drMaxStepM" type="number" step="0.0001" min="0" /></label>
+          <label>DR stability factor<input id="drStabilityFactor" type="number" step="0.05" min="0.1" max="2" /></label>
+          <label>DR mass safety<input id="drMassSafety" type="number" step="0.1" min="0.1" max="10" /></label>
+          <label>DR max iterations<input id="drMaxIterations" type="number" step="50" min="50" max="20000" /></label>
+          <label>Pressure ramp iters<input id="pressureRampIters" type="number" step="1" min="0" max="10000" /></label>
+          <label>DR Newton fallback after<input id="drNewtonFallbackAfter" type="number" step="1" min="0" max="20000" /></label>
+          <label>Membrane prestress (Pa, blank=auto)<input id="membranePrestress" type="number" step="50" min="0" placeholder="auto" /></label>
+          <label>Membrane pretension fraction (blank=auto)<input id="membranePretensionFraction" type="number" step="0.01" min="0" max="1" placeholder="auto" /></label>
+          <label>Membrane curvature radius (m, blank=auto)<input id="membraneCurvatureRadius" type="number" step="0.1" min="0" placeholder="auto" /></label>
+          <label>Membrane wrinkling eps (blank=auto)<input id="membraneWrinklingEps" type="number" step="0.00001" min="0" placeholder="auto" /></label>
+          <label>Membrane max strain (blank=auto, 0=off)<input id="membraneMaxStrain" type="number" step="0.1" min="0" placeholder="auto" /></label>
         </div>
       </details>
     </section>
@@ -532,8 +601,7 @@
               <div class="rig3dSubtitle">Interactiva: Orbita, Zoom y POVs</div>
             </div>
             <div class="rigLegend">
-              <span class="chip chipRelaxed">Relajado</span>
-              <span class="chip chipPrebend">Prebend</span>
+              <span class="chip chipPrebend">Referencia</span>
               <span class="chip chipLoaded">Cargado</span>
               <span class="chip chipStay">Jarcia</span>
             </div>

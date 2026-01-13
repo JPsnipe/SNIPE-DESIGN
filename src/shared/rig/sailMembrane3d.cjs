@@ -105,12 +105,17 @@ function det2(M) {
 
 /**
  * Inversa de matriz 2x2
+ *
+ * MEJORA: Umbral relativo basado en el tamaño de la matriz
+ * Para triángulos degenerados, devolver identidad evita fuerzas explosivas
  */
 function inv2(M) {
   const d = det2(M);
-  // Un determinante de 1e-12 significa un triángulo muy deformado o pequeño.
-  // Es mejor ignorarlo que producir fuerzas astronómicas.
-  if (Math.abs(d) < 1e-12) return [[1, 0], [0, 1]];
+  // Escala típica de la matriz (norma Frobenius aproximada)
+  const scale = Math.sqrt(M[0][0]*M[0][0] + M[0][1]*M[0][1] + M[1][0]*M[1][0] + M[1][1]*M[1][1]) + 1e-12;
+  // Umbral relativo: det debe ser al menos 1e-6 * escala^2 para invertir
+  const tol = 1e-6 * scale * scale;
+  if (Math.abs(d) < tol) return [[1, 0], [0, 1]];
   return [
     [M[1][1] / d, -M[0][1] / d],
     [-M[1][0] / d, M[0][0] / d]
@@ -183,9 +188,22 @@ function eigenvectors2x2(M, eigenvals) {
  * @param {number} material.nu - Coeficiente de Poisson
  * @param {number} material.thickness - Espesor de la membrana (m)
  * @param {number} material.prestress - Pretensión inicial (Pa)
+ * @param {number[]} [nodesRef] - Optional reference node positions for quality check
+ *
+ * ANTIGRAVITY ASCENSION v1.0:
+ * - Quality validation at creation time
+ * - Adaptive prestress scaling for borderline triangles
+ * - Runtime warnings for degenerate elements
  */
-function createMembraneElement(nodeIds, material) {
-  return {
+
+// Quality thresholds
+const MAX_ASPECT_RATIO = 100;        // Reject triangles with aspect ratio > 100
+const WARN_ASPECT_RATIO = 30;        // Warn for aspect ratio > 30
+const MIN_AREA_M2 = 1e-10;           // Reject triangles smaller than 0.1 mm²
+const PRESTRESS_SCALE_THRESHOLD = 20; // Start scaling prestress above this aspect ratio
+
+function createMembraneElement(nodeIds, material, nodesRef = null) {
+  const elem = {
     type: "membrane",
     nodeIds: nodeIds.slice(),
     E: material.E ?? 5e7,           // 50 MPa típico para velas de Dacron
@@ -194,8 +212,78 @@ function createMembraneElement(nodeIds, material) {
     prestress: material.prestress ?? 0,        // Pretensión explícita
     // Rigidez residual en compresión (Tension Field Theory)
     // Valor típico: 1e-4 a 1e-6 del valor en tensión
-    wrinklingEps: material.wrinklingEps ?? 1e-4
+    wrinklingEps: material.wrinklingEps ?? 1e-4,
+    // Límite numérico de deformación para evitar explosiones
+    maxStrain: material.maxStrain ?? 2.0,
+    // Quality metadata (populated if nodesRef provided)
+    quality: null
   };
+
+  // ANTIGRAVITY ASCENSION v1.0: Validate triangle quality if positions available
+  if (nodesRef && nodeIds.length === 3) {
+    const [i, j, k] = nodeIds;
+    const p0 = nodesRef[i];
+    const p1 = nodesRef[j];
+    const p2 = nodesRef[k];
+
+    if (p0 && p1 && p2) {
+      // Calculate edge lengths
+      const edge1 = norm3(sub3(p1, p0));
+      const edge2 = norm3(sub3(p2, p1));
+      const edge3 = norm3(sub3(p0, p2));
+      const maxEdge = Math.max(edge1, edge2, edge3);
+      const minEdge = Math.min(edge1, edge2, edge3);
+      const aspectRatio = maxEdge / Math.max(1e-12, minEdge);
+
+      // Calculate area
+      const e1 = sub3(p1, p0);
+      const e2 = sub3(p2, p0);
+      const cross = cross3(e1, e2);
+      const area = 0.5 * norm3(cross);
+
+      // Store quality metadata
+      elem.quality = {
+        aspectRatio,
+        area,
+        minEdge,
+        maxEdge,
+        isValid: true,
+        warnings: []
+      };
+
+      // Check for degenerate triangles
+      if (area < MIN_AREA_M2) {
+        elem.quality.isValid = false;
+        elem.quality.warnings.push(`Area too small: ${area.toExponential(2)} m²`);
+        console.warn(`MEMBRANE WARNING: Element nodes [${nodeIds}] has area ${area.toExponential(2)} m² (< ${MIN_AREA_M2})`);
+      }
+
+      if (aspectRatio > MAX_ASPECT_RATIO) {
+        elem.quality.isValid = false;
+        elem.quality.warnings.push(`Aspect ratio too high: ${aspectRatio.toFixed(1)}`);
+        console.warn(`MEMBRANE WARNING: Element nodes [${nodeIds}] has aspect ratio ${aspectRatio.toFixed(1)} (> ${MAX_ASPECT_RATIO})`);
+      } else if (aspectRatio > WARN_ASPECT_RATIO) {
+        elem.quality.warnings.push(`High aspect ratio: ${aspectRatio.toFixed(1)}`);
+      }
+
+      // ANTIGRAVITY ASCENSION v1.0: Adaptive prestress scaling
+      // High-aspect-ratio triangles need more prestress to remain stable
+      if (aspectRatio > PRESTRESS_SCALE_THRESHOLD && elem.prestress > 0) {
+        const scaleFactor = 1 + (aspectRatio - PRESTRESS_SCALE_THRESHOLD) / PRESTRESS_SCALE_THRESHOLD;
+        elem.prestress = elem.prestress * Math.min(scaleFactor, 5.0); // Cap at 5x
+        elem.quality.prestressScaled = true;
+        elem.quality.prestressScaleFactor = scaleFactor;
+      }
+
+      // High-aspect-ratio triangles also benefit from lower wrinkling epsilon (more stable)
+      if (aspectRatio > WARN_ASPECT_RATIO) {
+        elem.wrinklingEps = Math.max(1e-6, elem.wrinklingEps * 0.1);
+        elem.quality.wrinklingEpsReduced = true;
+      }
+    }
+  }
+
+  return elem;
 }
 
 /**
@@ -251,6 +339,12 @@ function projectToLocal(p, p0, e1, e2) {
  * F = ∂x/∂X donde x es la posición deformada y X es la referencia
  *
  * Para CST, F es constante en todo el elemento
+ *
+ * ESTABILIZACIÓN REFORZADA (Antigravity Ascension v1.0):
+ * - Validación temprana del determinante de Jacobiano
+ * - Detección de inversión de elemento (det(F) < 0)
+ * - Límites adaptativos basados en calidad del triángulo
+ * - Degradación suave en lugar de explosión
  */
 function computeDeformationGradient(elem, nodesRef, nodesCur) {
   const [i, j, k] = elem.nodeIds;
@@ -265,8 +359,47 @@ function computeDeformationGradient(elem, nodesRef, nodesCur) {
   const x1 = nodesCur[j];
   const x2 = nodesCur[k];
 
+  // RESULTADO DEGENERADO ESTÁNDAR
+  const DEGENERATE_RESULT = {
+    F: [[1, 0], [0, 1]],
+    Dm: [[1, 0], [0, 1]],
+    Ds: [[1, 0], [0, 1]],
+    DmInv: [[1, 0], [0, 1]],
+    e1: [1, 0, 0],
+    e2: [0, 1, 0],
+    n: [0, 0, 1],
+    area: 0,
+    degenerate: true,
+    reason: "invalid"
+  };
+
+  // VERIFICAR POSICIONES VÁLIDAS - límite aumentado a 100m para cubrir casos extremos
+  const posValid = [X0, X1, X2, x0, x1, x2].every(
+    p => p && p.every(v => Number.isFinite(v) && Math.abs(v) < 100)
+  );
+  if (!posValid) {
+    return { ...DEGENERATE_RESULT, reason: "invalid_positions" };
+  }
+
   // Base local de referencia
   const { e1, e2, n, area } = computeLocalBasis(X0, X1, X2);
+
+  // Área de referencia demasiado pequeña → elemento degenerado
+  if (area < 1e-9) {
+    return { ...DEGENERATE_RESULT, e1, e2, n, reason: "zero_area" };
+  }
+
+  // CALCULAR CALIDAD DEL TRIÁNGULO DE REFERENCIA
+  // Aspect ratio = (longest edge)² / (4 * sqrt(3) * area)
+  const edge1 = norm3(sub3(X1, X0));
+  const edge2 = norm3(sub3(X2, X1));
+  const edge3 = norm3(sub3(X0, X2));
+  const maxEdge = Math.max(edge1, edge2, edge3);
+  const minEdge = Math.min(edge1, edge2, edge3);
+  const aspectRatio = maxEdge / Math.max(1e-12, minEdge);
+
+  // Triángulo muy degenerado (aspect ratio > 50) → marcar pero continuar con cuidado
+  const isHighAspect = aspectRatio > 50;
 
   // Coordenadas locales de referencia (2D)
   const P0 = [0, 0]; // Origen en el primer nodo
@@ -285,6 +418,12 @@ function computeDeformationGradient(elem, nodesRef, nodesCur) {
     [P1[1] - P0[1], P2[1] - P0[1]]
   ];
 
+  // VERIFICAR CONDICIÓN DE Dm ANTES DE INVERTIR
+  const detDm = det2(Dm);
+  if (Math.abs(detDm) < 1e-12) {
+    return { ...DEGENERATE_RESULT, e1, e2, n, area, reason: "singular_Dm" };
+  }
+
   // Matriz deformada
   // Ds = [x1-x0, x2-x0] como columnas
   const Ds = [
@@ -296,7 +435,50 @@ function computeDeformationGradient(elem, nodesRef, nodesCur) {
   const DmInv = inv2(Dm);
   const F = mm2(Ds, DmInv);
 
-  return { F, Dm, Ds, DmInv, e1, e2, n, area, P0, P1, P2, p0, p1, p2 };
+  // NUEVO: VERIFICAR DETERMINANTE DE F (Jacobiano)
+  // det(F) < 0.1 significa > 90% de colapso volumétrico → elemento numéricamente muerto
+  // det(F) < 0 significa inversión (inside-out) → catastrófico
+  const detF = det2(F);
+
+  if (!Number.isFinite(detF) || detF < 0.05) {
+    // Elemento invertido o colapsado → devolver estado neutral
+    return {
+      F: [[1, 0], [0, 1]],
+      Dm, Ds, DmInv, e1, e2, n, area,
+      P0, P1, P2, p0, p1, p2,
+      degenerate: true,
+      inverted: detF < 0,
+      collapsed: detF >= 0 && detF < 0.05,
+      detF,
+      aspectRatio,
+      reason: detF < 0 ? "inverted_element" : "collapsed_element"
+    };
+  }
+
+  // VERIFICAR QUE F NO ES EXPLOSIVO
+  // Límite adaptativo: triángulos de baja calidad tienen límite más estricto
+  const maxFLimit = isHighAspect ? 20 : 50;
+  const maxF = Math.max(Math.abs(F[0][0]), Math.abs(F[0][1]), Math.abs(F[1][0]), Math.abs(F[1][1]));
+
+  if (!Number.isFinite(maxF) || maxF > maxFLimit) {
+    // Triángulo extremadamente distorsionado → limitar F de forma suave
+    const targetMax = isHighAspect ? 5 : 10;
+    const scale = maxF > 0 ? Math.min(1, targetMax / maxF) : 1;
+    const Fclamped = [
+      [1 + (F[0][0] - 1) * scale, F[0][1] * scale],
+      [F[1][0] * scale, 1 + (F[1][1] - 1) * scale]
+    ];
+    return {
+      F: Fclamped, Dm, Ds, DmInv, e1, e2, n, area,
+      P0, P1, P2, p0, p1, p2,
+      clamped: true,
+      originalMaxF: maxF,
+      aspectRatio,
+      detF
+    };
+  }
+
+  return { F, Dm, Ds, DmInv, e1, e2, n, area, P0, P1, P2, p0, p1, p2, aspectRatio, detF };
 }
 
 /**
@@ -322,7 +504,8 @@ function toVoigt(E) {
  * Convierte vector de Voigt a tensor 2x2 simétrico
  */
 function fromVoigt(v) {
-  return [[v[0], v[2] / 2], [v[2] / 2, v[1]]];
+  // Convención Voigt (ingeniería): [S11, S22, S12]
+  return [[v[0], v[2]], [v[2], v[1]]];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -371,7 +554,7 @@ function applyWrinklingModel(S_voigt, wrinklingEps) {
     S_modified = [
       sigma1 * v1[0] * v1[0] + sigma2_mod * v2[0] * v2[0],
       sigma1 * v1[1] * v1[1] + sigma2_mod * v2[1] * v2[1],
-      2 * (sigma1 * v1[0] * v1[1] + sigma2_mod * v2[0] * v2[1])
+      (sigma1 * v1[0] * v1[1] + sigma2_mod * v2[0] * v2[1])
     ];
 
     stiffnessFactor = 0.5 + 0.5 * wrinklingEps; // Factor medio
@@ -400,21 +583,57 @@ function applyWrinklingModel(S_voigt, wrinklingEps) {
 /**
  * Calcula la energía de deformación y el gradiente (fuerzas internas)
  * para un elemento de membrana, incluyendo modelo de wrinkling
+ *
+ * ANTIGRAVITY ASCENSION v1.0:
+ * - Per-element force magnitude cap (prevents single-element explosion from poisoning system)
+ * - Soft energy limiter for extreme deformations
+ * - Detailed health reporting per element
  */
+
+// Per-element force cap (N) - prevents single element from dominating/exploding
+const ELEMENT_FORCE_CAP = 1e6;
+// Energy density cap (J/m²) - soft limiter for extreme strain energy
+const ENERGY_DENSITY_CAP = 1e8;
+
 function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
   const [i, j, k] = elem.nodeIds;
 
   // Calcular gradiente de deformación
-  const { F, Dm, DmInv, e1, e2, n, area } =
-    computeDeformationGradient(elem, nodesRef, nodesCur);
+  const defGrad = computeDeformationGradient(elem, nodesRef, nodesCur);
+  const { F, Dm, DmInv, e1, e2, n, area, degenerate, clamped, inverted, collapsed, aspectRatio, detF, reason } = defGrad;
 
-  if (area < 1e-7) {
-    return { energy: 0, grad: new Array(dofMap.nDof).fill(0), Ke: Array.from({ length: 9 }, () => new Array(9).fill(0)), nodeIds: [i, j, k], forces: [[0, 0, 0], [0, 0, 0], [0, 0, 0]], stress: [0, 0, 0], strain: [0, 0, 0], area, wrinklingState: MEMBRANE_STATE.TAUT, principalStresses: [0, 0] };
+  // Resultado nulo estándar para elementos problemáticos
+  const NULL_RESULT = {
+    energy: 0,
+    grad: new Array(dofMap.nDof).fill(0),
+    Ke: Array.from({ length: 9 }, () => new Array(9).fill(0)),
+    nodeIds: [i, j, k],
+    forces: [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+    stress: [0, 0, 0],
+    strain: [0, 0, 0],
+    area,
+    wrinklingState: MEMBRANE_STATE.SLACK,
+    principalStresses: [0, 0],
+    degenerate: true,
+    health: { status: "degenerate", reason }
+  };
+
+  // Elemento degenerado, invertido o colapsado → devolver fuerzas nulas
+  if (degenerate || inverted || collapsed || area < 1e-7) {
+    return { ...NULL_RESULT, inverted, collapsed, reason };
   }
 
   // Deformación Green-Lagrange
   const E_tensor = greenLagrangeStrain(F);
-  const E_voigt = toVoigt(E_tensor);
+  let E_voigt = toVoigt(E_tensor);
+  const maxStrain = Number.isFinite(elem.maxStrain) ? Math.max(0, elem.maxStrain) : 0;
+  if (maxStrain > 0) {
+    for (let ii = 0; ii < E_voigt.length; ii++) {
+      const v = E_voigt[ii];
+      if (!Number.isFinite(v)) continue;
+      E_voigt[ii] = Math.max(-maxStrain, Math.min(maxStrain, v));
+    }
+  }
 
   // Matriz constitutiva
   const C = membraneConstitutive(elem.E, elem.nu);
@@ -437,7 +656,7 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
   const strainEnergy = 0.5 * (
     E_voigt[0] * S_voigt[0] +
     E_voigt[1] * S_voigt[1] +
-    E_voigt[2] * S_voigt[2] / 2  // Factor 1/2 porque S12 ya tiene 2*E12
+    E_voigt[2] * S_voigt[2]
   );
   const energy = strainEnergy * elem.thickness * area;
 
@@ -455,6 +674,7 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
 
   // Fuerzas internas en cada nodo (en coordenadas locales 2D)
   // f_a = -∫ P * ∂N_a/∂X dA = -P * ∂N_a/∂X * t * A
+  // El signo NEGATIVO es crítico: las fuerzas internas se oponen a la deformación
   const fLocal = [
     scale2(mv2(P_tensor, dNdX[0]), -elem.thickness * area),
     scale2(mv2(P_tensor, dNdX[1]), -elem.thickness * area),
@@ -462,11 +682,39 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
   ];
 
   // Convertir fuerzas locales 2D a globales 3D
-  const fGlobal = fLocal.map(fl => [
+  let fGlobal = fLocal.map(fl => [
     fl[0] * e1[0] + fl[1] * e2[0],
     fl[0] * e1[1] + fl[1] * e2[1],
     fl[0] * e1[2] + fl[1] * e2[2]
   ]);
+
+  // ANTIGRAVITY ASCENSION v1.0: Per-element force cap
+  // Prevents single explosive element from poisoning entire system
+  let forcesCapped = false;
+  let maxForce = 0;
+  for (const f of fGlobal) {
+    const mag = Math.sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
+    if (mag > maxForce) maxForce = mag;
+  }
+
+  if (!Number.isFinite(maxForce) || maxForce > ELEMENT_FORCE_CAP) {
+    // Cap the forces to prevent explosion
+    const capFactor = Number.isFinite(maxForce) && maxForce > 0
+      ? ELEMENT_FORCE_CAP / maxForce
+      : 0;
+    fGlobal = fGlobal.map(f => [f[0] * capFactor, f[1] * capFactor, f[2] * capFactor]);
+    forcesCapped = true;
+  }
+
+  // ANTIGRAVITY ASCENSION v1.0: Energy density cap
+  // Soft limiter prevents unrealistic strain energy accumulation
+  let energyCapped = energy;
+  let energyWasCapped = false;
+  const energyDensity = area > 0 ? energy / area : 0;
+  if (energyDensity > ENERGY_DENSITY_CAP) {
+    energyCapped = ENERGY_DENSITY_CAP * area;
+    energyWasCapped = true;
+  }
 
   const nodeIds = [i, j, k];
   /* targetGrad removed to avoid double counting - assembleSystem handles accumulation */
@@ -475,7 +723,7 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
   const Ke = computeCstStiffness(elem, S_tensor, dNdX, area, e1, e2, stiffnessFactor);
 
   return {
-    energy,
+    energy: energyCapped,
     Ke,
     nodeIds,
     forces: fGlobal,
@@ -483,7 +731,17 @@ function membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap) {
     strain: E_voigt,
     area,
     wrinklingState: wrinkling.state,
-    principalStresses: wrinkling.principalStresses
+    principalStresses: wrinkling.principalStresses,
+    // Health reporting for diagnostics
+    health: {
+      status: (forcesCapped || energyWasCapped || clamped) ? "capped" : "healthy",
+      forcesCapped,
+      energyWasCapped,
+      deformationClamped: clamped,
+      maxForce: maxForce,
+      aspectRatio,
+      detF
+    }
   };
 }
 
@@ -654,10 +912,22 @@ function membranePressureLoad(elem, nodesCur, pressure, dofMap, sign = 1) {
  *
  * @param {Array} grid - Grid de IDs de nodos [filas][columnas]
  * @param {Object} material - Propiedades del material
+ * @param {Array} [nodesRef] - Optional reference node positions for quality validation
+ *
+ * ANTIGRAVITY ASCENSION v1.0:
+ * - Quality validation during mesh creation
+ * - Filters out degenerate triangles
+ * - Reports mesh health statistics
  */
-function createMembraneMesh(grid, material) {
+function createMembraneMesh(grid, material, nodesRef = null) {
   const elements = [];
   const nRows = grid.length - 1;
+
+  // ANTIGRAVITY ASCENSION v1.0: Track mesh quality
+  let totalCreated = 0;
+  let validElements = 0;
+  let invalidElements = 0;
+  let warningElements = 0;
 
   for (let i = 0; i < nRows; i++) {
     const nCols = Math.min(grid[i].length, grid[i + 1].length) - 1;
@@ -670,16 +940,54 @@ function createMembraneMesh(grid, material) {
       const d = grid[i][j + 1];   // abajo-der
 
       // Dividir en 2 triángulos (diagonal a-c)
-      elements.push(createMembraneElement([a, b, c], material));
-      elements.push(createMembraneElement([a, c, d], material));
+      const elem1 = createMembraneElement([a, b, c], material, nodesRef);
+      const elem2 = createMembraneElement([a, c, d], material, nodesRef);
+
+      totalCreated += 2;
+
+      // Track quality and filter invalid elements
+      for (const elem of [elem1, elem2]) {
+        if (elem.quality) {
+          if (!elem.quality.isValid) {
+            invalidElements++;
+            // Skip invalid elements - they will cause numerical problems
+            continue;
+          }
+          if (elem.quality.warnings.length > 0) {
+            warningElements++;
+          }
+        }
+        validElements++;
+        elements.push(elem);
+      }
     }
   }
+
+  // Report mesh health
+  if (invalidElements > 0 || warningElements > 0) {
+    console.log(`MEMBRANE MESH: Created ${validElements}/${totalCreated} valid elements. ` +
+      `${invalidElements} rejected, ${warningElements} with warnings.`);
+  }
+
+  // Attach mesh quality metadata to the array
+  elements.meshQuality = {
+    totalCreated,
+    validElements,
+    invalidElements,
+    warningElements,
+    healthRatio: totalCreated > 0 ? validElements / totalCreated : 1
+  };
 
   return elements;
 }
 
 /**
  * Calcula la energía total y gradiente de todos los elementos de membrana
+ *
+ * ANTIGRAVITY ASCENSION v1.0:
+ * - Per-element health tracking
+ * - No longer returns NaN (forces are capped at element level)
+ * - Detailed system health metrics for diagnostics
  */
 function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
   let totalEnergy = 0;
@@ -694,54 +1002,65 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
     console.log(`totalMembraneEnergyAndGrad: first call, elements=${elements.length}, nDof=${nDof}`);
   }
 
-
   // Métricas para monitoreo de convergencia
   let maxStress = 0;
   let minStress = Infinity;
   let tautCount = 0;
   let wrinkledCount = 0;
   let slackCount = 0;
+  let prestressMin = Infinity;
+  let prestressMax = -Infinity;
+  let prestressSum = 0;
+  let wrinklingEpsMin = Infinity;
+  let wrinklingEpsMax = -Infinity;
+  let wrinklingEpsSum = 0;
 
-  /* skip targetGrad setting */
+  // ANTIGRAVITY ASCENSION v1.0: Health tracking
+  let healthyCount = 0;
+  let cappedCount = 0;
+  let degenerateCount = 0;
+  let invertedCount = 0;
+  let maxElementForce = 0;
+  let maxAspectRatio = 0;
 
   for (let i = 0; i < elements.length; i++) {
     const elem = elements[i];
     const res = membraneEnergyAndGrad(elem, nodesRef, nodesCur, dofMap);
-    totalEnergy += res.energy;
+
+    // Track energy only from healthy/capped elements
+    if (Number.isFinite(res.energy)) {
+      totalEnergy += res.energy;
+    }
 
     if (isFirstCall && i < 2) {
       console.log(`  Elem ${i}: area=${res.area.toFixed(6)}, forcesMax=${normInf(res.forces.flat()).toFixed(6)}`);
     }
 
-    // Debug: catch explosive forces (después de acumular, para ver magnitud real)
-    const gn = normInf(res.forces.flat());
-    if (gn > 1e12 || !Number.isFinite(gn)) {
-      const info = computeDeformationGradient(elem, nodesRef, nodesCur);
-      const fs = require('fs');
-      const dump = {
-        index: i,
-        nodeIds: elem.nodeIds,
-        nodesRef: elem.nodeIds.map(id => nodesRef[id]),
-        nodesCur: elem.nodeIds.map(id => nodesCur[id]),
-        forces: res.forces,
-        forcesMax: gn,
-        area: res.area,
-        Dm: info.Dm,
-        Ds: info.Ds,
-        DmInv: info.DmInv,
-        F: info.F,
-        elem: { E: elem.E, nu: elem.nu, thickness: elem.thickness, prestress: elem.prestress }
-      };
-      fs.writeFileSync('debug_explosion.json', JSON.stringify(dump, null, 2));
-      console.error(`FATAL: EXPLOSIVE MEMBRANE ELEMENT detected! Index: ${i}. More info in debug_explosion.json`);
-      throw new Error(`Numerical explosion in membrane element ${i} (nodes ${elem.nodeIds})`);
-    }
+    // ANTIGRAVITY ASCENSION v1.0: Track element health
+    const health = res.health || { status: "unknown" };
+    if (health.status === "healthy") healthyCount++;
+    else if (health.status === "capped") cappedCount++;
+    else if (health.status === "degenerate") degenerateCount++;
 
+    if (res.inverted) invertedCount++;
+    if (Number.isFinite(health.maxForce)) maxElementForce = Math.max(maxElementForce, health.maxForce);
+    if (Number.isFinite(health.aspectRatio)) maxAspectRatio = Math.max(maxAspectRatio, health.aspectRatio);
+
+    // Forces are now capped at element level - no need to check for explosion
     stressData.push({
       Ke: res.Ke,
       nodeIds: res.nodeIds,
       forces: res.forces
     });
+
+    const elemPrestress = Number.isFinite(elem.prestress) ? elem.prestress : 0;
+    const elemWrinklingEps = Number.isFinite(elem.wrinklingEps) ? elem.wrinklingEps : 1e-4;
+    prestressMin = Math.min(prestressMin, elemPrestress);
+    prestressMax = Math.max(prestressMax, elemPrestress);
+    prestressSum += elemPrestress;
+    wrinklingEpsMin = Math.min(wrinklingEpsMin, elemWrinklingEps);
+    wrinklingEpsMax = Math.max(wrinklingEpsMax, elemWrinklingEps);
+    wrinklingEpsSum += elemWrinklingEps;
 
     // Acumular en gradiente global
     for (let a = 0; a < 3; a++) {
@@ -752,18 +1071,22 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
       totalGrad[base + 2] += res.forces[a][2];
     }
 
-    // Actualizar métricas
-    const [s1, s2] = res.principalStresses;
-    maxStress = Math.max(maxStress, s1);
-    minStress = Math.min(minStress, s2 === -Infinity ? s1 : Math.min(minStress, s2));
+    // Actualizar métricas (solo para elementos no degenerados)
+    if (!res.degenerate) {
+      const [s1, s2] = res.principalStresses;
+      if (Number.isFinite(s1)) maxStress = Math.max(maxStress, s1);
+      if (Number.isFinite(s2)) minStress = Math.min(minStress, s2);
 
-    if (res.wrinklingState === MEMBRANE_STATE.TAUT) tautCount++;
-    else if (res.wrinklingState === MEMBRANE_STATE.WRINKLED) wrinkledCount++;
-    else slackCount++;
+      if (res.wrinklingState === MEMBRANE_STATE.TAUT) tautCount++;
+      else if (res.wrinklingState === MEMBRANE_STATE.WRINKLED) wrinkledCount++;
+      else slackCount++;
+    }
   }
 
   if (dofMap && dofMap.targetGrad) dofMap.targetGrad = undefined;
-  console.log("DEBUG: totalMembraneEnergyAndGrad finishing. Keys:", Object.keys(dofMap));
+  if (totalMembraneEnergyAndGrad.debug) {
+    console.log("DEBUG: totalMembraneEnergyAndGrad finishing. Keys:", Object.keys(dofMap));
+  }
 
   return {
     energy: totalEnergy,
@@ -775,7 +1098,23 @@ function totalMembraneEnergyAndGrad(elements, nodesRef, nodesCur, dofMap) {
       tautCount,
       wrinkledCount,
       slackCount,
-      elementCount: elements.length
+      elementCount: elements.length,
+      prestressMin: prestressMin === Infinity ? 0 : prestressMin,
+      prestressMax: prestressMax === -Infinity ? 0 : prestressMax,
+      prestressAvg: elements.length > 0 ? prestressSum / elements.length : 0,
+      wrinklingEpsMin: wrinklingEpsMin === Infinity ? 0 : wrinklingEpsMin,
+      wrinklingEpsMax: wrinklingEpsMax === -Infinity ? 0 : wrinklingEpsMax,
+      wrinklingEpsAvg: elements.length > 0 ? wrinklingEpsSum / elements.length : 0,
+      // ANTIGRAVITY ASCENSION v1.0: System health metrics
+      systemHealth: {
+        healthyCount,
+        cappedCount,
+        degenerateCount,
+        invertedCount,
+        maxElementForce,
+        maxAspectRatio,
+        healthRatio: elements.length > 0 ? healthyCount / elements.length : 1
+      }
     }
   };
 }

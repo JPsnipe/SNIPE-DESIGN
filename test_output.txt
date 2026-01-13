@@ -1,7 +1,7 @@
 Starting Simulation...
-Simulation finished. Converged: true
+Simulation finished. Converged: false
 
 --- Final Tensions ---
-Stay: 42.8 N (Locked at ~1000 N, now subject to load)
-Shroud Port: 0.6 N
-Shroud Stbd: 994.9 N
+Stay: 34.2 N (Locked at ~1000 N, now subject to load)
+Shroud Port: 0.0 N
+Shroud Stbd: 0.0 N

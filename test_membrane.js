@@ -27,10 +27,30 @@ async function test() {
                 mastSegments: 50, pretensionSteps: 1, loadSteps: 1,
                 maxIterations: 100, toleranceN: 1.0, cableCompressionEps: 1e-6,
                 sailDamping: 5.0, sailDampingDecay: 0.95,
-                drTimeStep: 0.002
+                drTimeStep: 0.005,
+                drMaxIterations: 200, // Faster timeout
+                sailDamping: 2.0
             },
             sails: {
-                enabled: false, windPressurePa: 0, windSign: 1
+                enabled: true,
+                windPressurePa: 80, // Moderate pressure
+                windSign: 1,
+                main: {
+                    enabled: true,
+                    draftDepth: 0.08,
+                    draftPos: 0.4,
+                    luffLengthM: 4.88, // Standard Snipe
+                    footLengthM: 2.50, // Standard Snipe
+                    mesh: { luffSegments: 6, chordSegments: 3 } // Low res for fast test
+                },
+                jib: {
+                    enabled: true,
+                    draftDepth: 0.07,
+                    draftPos: 0.35,
+                    luffLengthM: 3.50,
+                    footLengthM: 1.50,
+                    mesh: { luffSegments: 6, chordSegments: 3 }
+                }
             }
         };
 

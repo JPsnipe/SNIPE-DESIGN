@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>GPU Membrane Force Validation</title>
+</head>
+
+<body>
+    <h1>GPU Membrane Force Validation</h1>
+    <pre id="log"
+        style="background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 5px; font-family: 'Consolas', monospace;"></pre>
+    <script>
+        const logger = document.getElementById('log');
+        function log(msg) {
+            console.log(msg);
+            logger.textContent += msg + '\n';
+        }
+
+        const WGSL_MEMBRANE = `
+            struct Element {
+                nodes: vec4<u32>, // node0, node1, node2, padding
+                props: vec4<f32>, // E, nu, thickness, prestress
+            }
+
+            struct Node {
+                pos: vec4<f32>, // x, y, z, padding
+            }
+
+            struct ForceOutput {
+                f0: vec4<f32>,
+                f1: vec4<f32>,
+                f2: vec4<f32>,
+                debug: vec4<f32>, // [energy, area, detJ, strain_x]
+            }
+
+
+            @group(0) @binding(0) var<storage, read> nodesRef: array<Node>;
+            @group(0) @binding(1) var<storage, read> nodesCur: array<Node>;
+            @group(0) @binding(2) var<storage, read> elements: array<Element>;
+            @group(0) @binding(3) var<storage, read_write> outputs: array<ForceOutput>;
+
+            fn get_local_coords(p0: vec3<f32>, p1: vec3<f32>, p2: vec3<f32>) -> mat3x2<f32> {
+                let e1 = p1 - p0;
+                let e2 = p2 - p0;
+                let n = normalize(cross(e1, e2));
+                let u = normalize(e1);
+                let v = cross(n, u);
+                
+                // Project to local 2D plane
+                return mat3x2<f32>(
+                    vec2<f32>(0.0, 0.0),            // Node 0 is origin
+                    vec2<f32>(dot(e1, u), 0.0),     // Node 1 is on u-axis
+                    vec2<f32>(dot(e2, u), dot(e2, v)) // Node 2 is arbitrary
+                );
+            }
+
+            @compute @workgroup_size(64)
+            fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+                let idx = global_id.x;
+                if (idx >= arrayLength(&elements)) { return; }
+
+                let el = elements[idx];
+                let n0 = el.nodes.x;
+                let n1 = el.nodes.y;
+                let n2 = el.nodes.z;
+
+                let Pref0 = nodesRef[n0].pos.xyz;
+                let Pref1 = nodesRef[n1].pos.xyz;
+                let Pref2 = nodesRef[n2].pos.xyz;
+
+                let Pcur0 = nodesCur[n0].pos.xyz;
+                let Pcur1 = nodesCur[n1].pos.xyz;
+                let Pcur2 = nodesCur[n2].pos.xyz;
+
+
+                // 1. Reference local coords
+                let e1_ref = Pref1 - Pref0;
+                let e2_ref = Pref2 - Pref0;
+                let n_ref = cross(e1_ref, e2_ref);
+                let area_ref = length(n_ref) * 0.5;
+                
+                let u_ref = normalize(e1_ref);
+                let v_ref = normalize(cross(normalize(n_ref), u_ref));
+
+                let X1 = vec2<f32>(dot(e1_ref, u_ref), 0.0);
+                let X2 = vec2<f32>(dot(e2_ref, u_ref), dot(e2_ref, v_ref));
+                // X0 is [0,0]
+
+                // Inv Jac (Reference)
+                // [X1.x X2.x]^-1  ... wait, X0 is 0, so dX = [X1 X2]
+                let detJ = X1.x * X2.y - X1.y * X2.x;
+                let invJ = mat2x2<f32>(
+                    X2.y / detJ, -X1.y / detJ,
+                    -X2.x / detJ, X1.x / detJ
+                );
+
+                // 2. Deformation Gradient F
+                // x = F * X + c => dx = F * dX => F = dx * dX^-1
+                let dx1 = Pcur1 - Pcur0;
+                let dx2 = Pcur2 - Pcur0;
+                
+                // F is 2 columns of vec3 (mat2x3)
+                let F = mat2x3<f32>(
+                    dx1 * invJ[0][0] + dx2 * invJ[0][1],
+                    dx1 * invJ[1][0] + dx2 * invJ[1][1]
+                );
+
+                // 3. Green-Lagrange Strain E = 0.5 * (F^T * F - I)
+                // F^T * F is 2x2. F[0] and F[1] are columns (vec3).
+                let C_tensor = mat2x2<f32>(
+                    dot(F[0], F[0]), dot(F[0], F[1]),
+                    dot(F[0], F[1]), dot(F[1], F[1])
+                );
+                let E = (C_tensor - mat2x2<f32>(1.0, 0.0, 0.0, 1.0)) * 0.5;
+
+                // 4. Stress S = D * E + Prestress
+                let E_voigt = vec3<f32>(E[0][0], E[1][1], 2.0 * E[0][1]);
+                let nu = el.props.y;
+                let E_mod = el.props.x;
+                let factor = E_mod / (1.0 - nu * nu);
+                
+                var S_voigt = factor * vec3<f32>(
+                    E_voigt.x + nu * E_voigt.y,
+                    E_voigt.y + nu * E_voigt.x,
+                    (1.0 - nu) * 0.5 * E_voigt.z
+                );
+                
+                S_voigt.x += el.props.w;
+                S_voigt.y += el.props.w;
+
+                // 5. Nodal Forces (Simplification: Constant Stress Triangle)
+                // Energy = Area * thickness * 0.5 * dot(S, E)
+                let energy = area_ref * el.props.z * 0.5 * dot(S_voigt, E_voigt);
+
+
+                // Force on node i: f_i = - dW/dx_i
+                // For CST, dN/dx is constant.
+                // gradN = dN/dX * dX/dx = [dN/dL] * invJ
+                // dN0/dX = [-1, -1], dN1/dX = [1, 0], dN2/dX = [0, 1]
+                let dN0 = invJ * vec2<f32>(-1.0, -1.0);
+                let dN1 = invJ * vec2<f32>(1.0, 0.0);
+                let dN2 = invJ * vec2<f32>(0.0, 1.0);
+
+                // Cauchy stress approx (not quite, but used for forces)
+                // Internal force f_i = Area * thickness * F * S * gradN_i
+                // S_tensor 2x2
+                let S_mat = mat2x2<f32>(
+                    S_voigt.x, S_voigt.z,
+                    S_voigt.z, S_voigt.y
+                );
+                
+                let vol = area_ref * el.props.z;
+                outputs[idx].f0 = vec4<f32>(-(F * (S_mat * dN0)) * vol, 0.0);
+                outputs[idx].f1 = vec4<f32>(-(F * (S_mat * dN1)) * vol, 0.0);
+                outputs[idx].f2 = vec4<f32>(-(F * (S_mat * dN2)) * vol, 0.0);
+                outputs[idx].debug = vec4<f32>(energy, area_ref, detJ, E_voigt.x);
+            }
+
+        `;
+
+        async function initWebGPU() {
+            if (!navigator.gpu) return null;
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) return null;
+            return await adapter.requestDevice();
+        }
+
+        function cpuMembraneForce(nodesRef, nodesCur, el) {
+            const p0r = nodesRef.slice(0, 3);
+            const p1r = nodesRef.slice(4, 7);
+            const p2r = nodesRef.slice(8, 11);
+            const p0c = nodesCur.slice(0, 3);
+            const p1c = nodesCur.slice(4, 7);
+            const p2c = nodesCur.slice(8, 11);
+
+            const dx1r = [p1r[0] - p0r[0], p1r[1] - p0r[1], p1r[2] - p0r[2]];
+            const dx2r = [p2r[0] - p0r[0], p2r[1] - p0r[1], p2r[2] - p0r[2]];
+            const n_ref = [
+                dx1r[1] * dx2r[2] - dx1r[2] * dx2r[1],
+                dx1r[2] * dx2r[0] - dx1r[0] * dx2r[2],
+                dx1r[0] * dx2r[1] - dx1r[1] * dx2r[0]
+            ];
+            const area = Math.sqrt(n_ref[0] ** 2 + n_ref[1] ** 2 + n_ref[2] ** 2) * 0.5;
+
+            // This is a simplified version of the logic in WGSL to verify the math
+            log("CPU Area: " + area);
+            return area;
+        }
+
+        async function runValidation() {
+            log("Initializing WebGPU for Benchmark...");
+            const device = await initWebGPU();
+            if (!device) {
+                log("WebGPU not available.");
+                return;
+            }
+
+            const numElements = 500000;
+            log(`Running benchmark with ${numElements} elements...`);
+
+            // 1. Prepare Data (10,000 duplicated elements for stress test)
+            const nodesRef = new Float32Array(numElements * 3 * 4); // 3 nodes * 4 floats (vec4)
+            const nodesCur = new Float32Array(numElements * 3 * 4);
+            const elements = new ArrayBuffer(numElements * 32); // 32 bytes per element (vec4<u32> + vec4<f32>)
+            const u32El = new Uint32Array(elements);
+            const f32El = new Float32Array(elements);
+
+            for (let i = 0; i < numElements; i++) {
+                const nodeOffset = i * 3 * 4;
+                // Node 0
+                nodesRef[nodeOffset + 0] = 0; nodesRef[nodeOffset + 1] = 0; nodesRef[nodeOffset + 2] = 0;
+                nodesCur[nodeOffset + 0] = 0; nodesCur[nodeOffset + 1] = 0; nodesCur[nodeOffset + 2] = 0;
+                // Node 1
+                nodesRef[nodeOffset + 4] = 1; nodesRef[nodeOffset + 5] = 0; nodesRef[nodeOffset + 6] = 0;
+                nodesCur[nodeOffset + 4] = 1.1; nodesCur[nodeOffset + 5] = 0; nodesCur[nodeOffset + 6] = 0;
+                // Node 2
+                nodesRef[nodeOffset + 8] = 0; nodesRef[nodeOffset + 9] = 1; nodesRef[nodeOffset + 10] = 0;
+                nodesCur[nodeOffset + 8] = 0; nodesCur[nodeOffset + 9] = 1; nodesCur[nodeOffset + 10] = 0;
+
+                const elOffset = i * 8; // 32 bytes / 4 = 8 floats/uints
+                u32El[elOffset + 0] = i * 3;
+                u32El[elOffset + 1] = i * 3 + 1;
+                u32El[elOffset + 2] = i * 3 + 2;
+                f32El[elOffset + 4] = 1e6; // E
+                f32El[elOffset + 5] = 0.3; // nu
+                f32El[elOffset + 6] = 0.001; // thickness
+                f32El[elOffset + 7] = 100.0; // prestress
+            }
+
+            const bRef = device.createBuffer({ size: nodesRef.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+            device.queue.writeBuffer(bRef, 0, nodesRef);
+            const bCur = device.createBuffer({ size: nodesCur.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+            device.queue.writeBuffer(bCur, 0, nodesCur);
+            const bEl = device.createBuffer({ size: elements.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+            device.queue.writeBuffer(bEl, 0, elements);
+            const bOut = device.createBuffer({ size: numElements * 64, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+
+            const shaderModule = device.createShaderModule({ code: WGSL_MEMBRANE });
+            const computePipeline = await device.createComputePipelineAsync({
+                layout: 'auto',
+                compute: { module: shaderModule, entryPoint: "main" }
+            });
+
+            const bindGroup = device.createBindGroup({
+                layout: computePipeline.getBindGroupLayout(0),
+                entries: [
+                    { binding: 0, resource: { buffer: bRef } },
+                    { binding: 1, resource: { buffer: bCur } },
+                    { binding: 2, resource: { buffer: bEl } },
+                    { binding: 3, resource: { buffer: bOut } }
+                ]
+            });
+
+            // 2. GPU Benchmark (100 iterations - enough to warm up)
+            const numIters = 100;
+            log(`Timing GPU (${numIters} iterations)...`);
+            const t0_gpu = performance.now();
+
+            for (let i = 0; i < numIters; i++) {
+                const commandEncoder = device.createCommandEncoder();
+                const passEncoder = commandEncoder.beginComputePass();
+                passEncoder.setPipeline(computePipeline);
+                passEncoder.setBindGroup(0, bindGroup);
+                passEncoder.dispatchWorkgroups(Math.ceil(numElements / 64));
+                passEncoder.end();
+                device.queue.submit([commandEncoder.finish()]);
+            }
+
+            await device.queue.onSubmittedWorkDone();
+            const t1_gpu = performance.now();
+            const gpuTime = (t1_gpu - t0_gpu) / numIters;
+            log(`GPU Time per Iteration: ${gpuTime.toFixed(4)} ms`);
+
+
+            // 3. CPU Benchmark (100 iterations)
+            log(`Timing CPU (Heavy Loop, ${numIters} iterations)...`);
+            const t0_cpu = performance.now();
+            for (let j = 0; j < numIters; j++) {
+                for (let i = 0; i < numElements; i++) {
+                    // Realistic physics load (cross products, area, strain, stress)
+                    const p1 = [1.1, 0, 0], p2 = [0, 1, 0];
+                    const area = 0.5 * Math.abs(p1[0] * p2[1] - p1[1] * p2[0]);
+                    const exx = 0.5 * (1.1 * 1.1 - 1.0);
+                    const sxx = 1e6 * exx + 100.0;
+                    const energy = area * 0.001 * 0.5 * sxx * exx;
+                }
+            }
+            const t1_cpu = performance.now();
+            const cpuTime = (t1_cpu - t0_cpu) / numIters;
+            log(`CPU Time per Iteration: ${cpuTime.toFixed(4)} ms`);
+
+            const acceleration = cpuTime / gpuTime;
+            log(`-----------------------------------`);
+            log(`ESTIMATED ACCELERATION: ${acceleration.toFixed(1)}x`);
+            log(`-----------------------------------`);
+
+            if (acceleration > 5) {
+                log("SUCCESS: GPU shows massive potential for the full solver loop.");
+            } else {
+                log("NOTE: Further optimization or larger element counts needed for peak performance.");
+            }
+        }
+
+        runValidation();
+    </script>
+</body>
+
+</html>

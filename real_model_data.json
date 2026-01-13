@@ -1,0 +1,3390 @@
+{
+  "nodes": [
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 0
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 1
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 2
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 3
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 4
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 5
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 6
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 7
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 8
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 9
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 10
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 11
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 12
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 13
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 14
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 15
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 16
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 17
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 18
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 19
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 20
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 21
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 22
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 23
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 24
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 25
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 26
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 27
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 28
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 29
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 30
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 31
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 32
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 33
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 34
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 35
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 36
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 37
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 38
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 39
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 40
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 41
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 42
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 43
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 44
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 45
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 46
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 47
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 48
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 49
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 50
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 51
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 52
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 53
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 54
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 55
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 56
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 57
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 58
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 59
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 60
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 61
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 62
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 63
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 64
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 65
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 66
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 67
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 68
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 69
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 70
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 71
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 72
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 73
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 74
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 75
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 76
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 77
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 78
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 79
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 80
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 81
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 82
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 83
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 84
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 85
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 86
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 87
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 88
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 89
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 90
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 91
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 92
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 93
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 94
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 95
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 96
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 97
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 98
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 99
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 100
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 101
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 102
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 103
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 104
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 105
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 106
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 107
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 108
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 109
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 110
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 111
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 112
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 113
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 114
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 115
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 116
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 117
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 118
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 119
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 120
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 121
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 122
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 123
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 124
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 125
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 126
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 127
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 128
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 1,
+      "mass": 0.1,
+      "id": 129
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 130
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 131
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 132
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 133
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 134
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 135
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 136
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 137
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 138
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 139
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 140
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 141
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 142
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 143
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 144
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 145
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 146
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 147
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 148
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 149
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 150
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 151
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 152
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 153
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 154
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 155
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 156
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 157
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 158
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 159
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 160
+    },
+    {
+      "pos": [
+        null,
+        null,
+        null
+      ],
+      "fixed": 0,
+      "mass": 0.1,
+      "id": 161
+    }
+  ],
+  "membranes": [
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    },
+    {
+      "nodeIndices": [
+        -1,
+        -1,
+        -1
+      ],
+      "E": 50000000,
+      "nu": 0.3,
+      "thickness": 0.00025,
+      "area0": 0.001
+    }
+  ],
+  "params": {
+    "dt": 0.001,
+    "damping": 0.05
+  }
+}

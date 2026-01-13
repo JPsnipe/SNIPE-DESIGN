@@ -36,16 +36,19 @@ function getPresets() {
       controls: {
         spreaderLengthMm: 534,
         spreaderAngleDeg: 32.0,
-        shroudBaseDeltaMm: 27,
-        shroudDeltaPortMm: 1.0,
-        shroudDeltaStbdMm: 1.0,
+        shroudBaseDeltaMm: 0,
+        shroudDeltaPortMm: 0,
+        shroudDeltaStbdMm: 0,
         jibHalyardTensionkN: 0,
-        partnersKx_kNpm: 25,
-        partnersKy_kNpm: 0,
+        partnersKx_kNpm: 250,
+        partnersKy_kNpm: 250,
+        partnersOffsetXMm: 0,
+        partnersOffsetYMm: 0,
         mainSheetMm: 0,
         mainOuthaulMm: 0,
         mainVangMm: 0,
-        mainSheetLeadYM: -2500
+        mainSheetLeadYM: -2500,
+        lockStayLength: true
       },
       load: {
         mode: "upwind",
@@ -53,12 +56,14 @@ function getPresets() {
         qProfile: "triangular"
       },
       solver: {
-        mastSegments: 100,
-        pretensionSteps: 20,
-        loadSteps: 20,
-        maxIterations: 300,
-        toleranceN: 0.5,
-        cableCompressionEps: 1e-3
+        mastSegments: 60,
+        cableSegments: 1,
+        pretensionSteps: 10,
+        loadSteps: 10,
+        maxIterations: 150,
+        toleranceN: 5.0,
+        cableCompressionEps: 1e-3,
+        drMaxIterations: 5000
       },
       stiffness: {
         mastEIBase: 7500,
@@ -90,7 +95,8 @@ function getPresets() {
         mainSheetMm: 0,
         mainOuthaulMm: 0,
         mainVangMm: 0,
-        mainSheetLeadYM: -2500
+        mainSheetLeadYM: -2500,
+        lockStayLength: true
       },
       load: {
         mode: "upwind",
@@ -98,12 +104,14 @@ function getPresets() {
         qProfile: "triangular"
       },
       solver: {
-        mastSegments: 100,
-        pretensionSteps: 20,
-        loadSteps: 20,
-        maxIterations: 300,
-        toleranceN: 0.5,
-        cableCompressionEps: 1e-3
+        mastSegments: 60,
+        cableSegments: 1,
+        pretensionSteps: 10,
+        loadSteps: 10,
+        maxIterations: 150,
+        toleranceN: 5.0,
+        cableCompressionEps: 1e-3,
+        drMaxIterations: 5000
       },
       // Rigidez típica Snipe (Selden C060, aluminio 6061-T6)
       stiffness: {
@@ -136,7 +144,8 @@ function getPresets() {
         mainSheetMm: 0,
         mainOuthaulMm: 0,
         mainVangMm: 0,
-        mainSheetLeadYM: -2500
+        mainSheetLeadYM: -2500,
+        lockStayLength: true
       },
       load: {
         mode: "upwind",
@@ -144,12 +153,14 @@ function getPresets() {
         qProfile: "triangular"
       },
       solver: {
-        mastSegments: 100,
-        pretensionSteps: 20,
-        loadSteps: 20,
-        maxIterations: 300,
-        toleranceN: 0.5,
-        cableCompressionEps: 1e-3
+        mastSegments: 60,
+        cableSegments: 1,
+        pretensionSteps: 10,
+        loadSteps: 10,
+        maxIterations: 150,
+        toleranceN: 5.0,
+        cableCompressionEps: 1e-3,
+        drMaxIterations: 5000
       },
       // Rigidez típica Snipe - palo más blando para viento ligero
       stiffness: {
@@ -182,7 +193,8 @@ function getPresets() {
         mainSheetMm: 0,
         mainOuthaulMm: 0,
         mainVangMm: 0,
-        mainSheetLeadYM: -2500
+        mainSheetLeadYM: -2500,
+        lockStayLength: true
       },
       load: {
         mode: "upwind",
@@ -190,12 +202,14 @@ function getPresets() {
         qProfile: "triangular"
       },
       solver: {
-        mastSegments: 100,
-        pretensionSteps: 20,
-        loadSteps: 20,
-        maxIterations: 300,
-        toleranceN: 0.5,
-        cableCompressionEps: 1e-3
+        mastSegments: 60,
+        cableSegments: 1,
+        pretensionSteps: 10,
+        loadSteps: 10,
+        maxIterations: 150,
+        toleranceN: 5.0,
+        cableCompressionEps: 1e-3,
+        drMaxIterations: 5000
       },
       // Rigidez típica Snipe - palo más rígido para viento fuerte
       stiffness: {

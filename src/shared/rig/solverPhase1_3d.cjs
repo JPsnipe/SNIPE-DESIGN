@@ -32,6 +32,27 @@ function buildDofMap3d(nodes) {
   return { map, nDof };
 }
 
+function getMembraneMinEdge(model) {
+  if (!model?.membranes || model.membranes.length === 0) return null;
+  const nodesRef = model.nodes.map((node) => node.p0);
+  let minEdge = Infinity;
+  for (const elem of model.membranes) {
+    const ids = elem?.nodeIds;
+    if (!ids || ids.length !== 3) continue;
+    const p0 = nodesRef[ids[0]];
+    const p1 = nodesRef[ids[1]];
+    const p2 = nodesRef[ids[2]];
+    if (!p0 || !p1 || !p2) continue;
+    minEdge = Math.min(
+      minEdge,
+      norm3(sub3(p1, p0)),
+      norm3(sub3(p2, p1)),
+      norm3(sub3(p0, p2))
+    );
+  }
+  return Number.isFinite(minEdge) ? minEdge : null;
+}
+
 function getU3(nodeId, dofMap, x) {
   const base = dofMap.map.get(nodeId);
   if (base === undefined) return [0, 0, 0];
@@ -69,23 +90,31 @@ function cloneMatrix(A) {
 
 /**
  * Respuesta suave de cable con regularización mejorada
- * epsComp más bajo para cables realmente flojos
+ * IMPORTANTE: Los cables SOLO pueden tirar (tensión >= 0), NUNCA empujar
+ * La energía se mantiene suave para convergencia del solver
  */
 function cableResponse({ dL, k0, epsComp, delta }) {
   const r = Math.sqrt(dL * dL + delta * delta);
   const s = 0.5 * (1 + dL / r);
 
   const kEff = k0 * (epsComp + (1 - epsComp) * s);
-  const N = kEff * dL;
+  // CRÍTICO: Fuerza debe ser >= 0 (cables no pueden empujar)
+  const Nraw = kEff * dL;
+  const N = Math.max(0, Nraw);
 
   const ds = 0.5 * (delta * delta) / (r * r * r);
   const dkEff = k0 * (1 - epsComp) * ds;
-  const kTangent = kEff + dL * dkEff;
+  // Rigidez tangente: si cable está flojo (N=0), rigidez residual pequeña para estabilidad numérica
+  const kTangent = N > 0 ? (kEff + dL * dkEff) : k0 * epsComp;
 
+  // Energía: mantener suave para convergencia (no discontinuidad)
+  // Usar solo la parte cuadrática cuando dL < 0 para evitar valores negativos
   const asinh = Math.asinh(dL / delta);
-  const energy =
+  const energyFull =
     0.25 * k0 * (1 + epsComp) * dL * dL +
     0.25 * k0 * (1 - epsComp) * (dL * r - delta * delta * asinh);
+  // Si dL < 0, usar solo término cuadrático suavizado (siempre positivo)
+  const energy = dL >= 0 ? energyFull : 0.5 * k0 * epsComp * dL * dL;
 
   return { N, kTangent, energy };
 }
@@ -270,11 +299,18 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
     const kx = s.kx || 0;
     const ky = s.ky || 0;
     const kz = s.kz || 0;
+    const tx = s.targetX || 0;
+    const ty = s.targetY || 0;
+    const tz = s.targetZ || 0;
 
-    energyInternal += 0.5 * (kx * ux * ux + ky * uy * uy + kz * uz * uz);
-    grad[base] += kx * ux;
-    grad[base + 1] += ky * uy;
-    grad[base + 2] += kz * uz;
+    const dx = ux - tx;
+    const dy = uy - ty;
+    const dz = uz - tz;
+
+    energyInternal += 0.5 * (kx * dx * dx + ky * dy * dy + kz * dz * dz);
+    grad[base] += kx * dx;
+    grad[base + 1] += ky * dy;
+    grad[base + 2] += kz * dz;
     if (!skipK) {
       K[base][base] += kx;
       K[base + 1][base + 1] += ky;
@@ -456,20 +492,11 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
       const delta = Number.isFinite(e.smoothDeltaM)
         ? Math.max(1e-9, e.smoothDeltaM)
         : Math.max(1e-4, e.L0 * 1e-4); // Banda de transicion suave
-      const r = Math.sqrt(dL * dL + delta * delta);
-      const s = 0.5 * (1 + dL / r);
 
-      const kEff = k0 * (epsComp + (1 - epsComp) * s);
-      N = kEff * dL;
-
-      const ds = 0.5 * (delta * delta) / (r * r * r);
-      const dkEff = k0 * (1 - epsComp) * ds;
-      kTangent = kEff + dL * dkEff;
-
-      const asinh = Math.asinh(dL / delta);
-      energyInternal +=
-        0.25 * k0 * (1 + epsComp) * dL * dL +
-        0.25 * k0 * (1 - epsComp) * (dL * r - delta * delta * asinh);
+      const res = cableResponse({ dL, k0, epsComp, delta });
+      N = res.N;
+      kTangent = res.kTangent;
+      energyInternal += res.energy;
     }
 
     // Gradiente 3D
@@ -584,8 +611,8 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
                   console.error("FATAL: dofMap.map disappeared at a=" + a + ", b=" + b);
                   continue;
                 }
-                const rowBase = map.get(ids[a]);
-                const colBase = map.get(ids[b]);
+                const rowBase = dofMap.map.get(ids[a]);
+                const colBase = dofMap.map.get(ids[b]);
                 if (rowBase === undefined || colBase === undefined) continue;
                 for (let i = 0; i < 3; i++) {
                   for (let j = 0; j < 3; j++) {
@@ -653,116 +680,9 @@ function assembleSystem({ model, dofMap, x, cableCompressionEps = 1e-6, skipK = 
   };
 }
 
-function solveEquilibrium3d({ model, solver, x0 }) {
-  const dofMap = buildDofMap3d(model.nodes);
+function solveEquilibriumNewton3d({ model, dofMap, solver, x0, tol, maxIt, eps, hasMembranes }) {
   let x = x0?.slice() ?? zeros(dofMap.nDof);
   if (x.length !== dofMap.nDof) x = zeros(dofMap.nDof);
-
-  const tol = solver.toleranceN;
-  const maxIt = solver.maxIterations || 300;
-  const eps = solver.cableCompressionEps ?? 1e-6;
-
-  // SANITY CHECK: Verificar integridad del modelo antes de empezar
-  for (const node of model.nodes) {
-    if (!node.p0.every(Number.isFinite)) {
-      console.error(`FATAL: Node ${node.id} (${node.name}) has non-finite p0: ${node.p0}`);
-      throw new Error(`Invalid model: Node ${node.id} is corrupt`);
-    }
-  }
-
-  // VERIFICAR x0 inicial
-  for (let i = 0; i < x.length; i++) {
-    if (!Number.isFinite(x[i])) {
-      console.error(`FATAL: solveEquilibrium3d started with NaN at DOF ${i}. Resetting to 0.`);
-      x[i] = 0;
-    }
-  }
-
-  const sysInitial = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: true });
-  const gradMax0 = normInf(sysInitial.grad);
-  console.log(`DEBUG: Initial state: Energy=${sysInitial.energy.toExponential(4)}, GradMax=${gradMax0.toExponential(4)}, xNorm=${normInf(x).toExponential(4)}`);
-
-  if (gradMax0 > 1e10) {
-    let maxIdx = 0;
-    let maxVal = 0;
-    for (let i = 0; i < sysInitial.grad.length; i++) {
-      if (Math.abs(sysInitial.grad[i]) > maxVal) {
-        maxVal = Math.abs(sysInitial.grad[i]);
-        maxIdx = i;
-      }
-    }
-    console.warn(`WARNING: High GradMax detected at DOF ${maxIdx} (value: ${maxVal.toExponential(2)})`);
-    // Encontrar el nodo correspondiente
-    for (const [nodeId, base] of dofMap.map.entries()) {
-      if (maxIdx >= base && maxIdx < base + 3) {
-        const node = model.nodes[nodeId];
-        console.warn(`  Node: ${node.id} (${node.name}), p0: ${node.p0}`);
-        break;
-      }
-    }
-  }
-
-
-  // Detectar si hay membranas y usar Dynamic Relaxation
-  const hasMembranes = model.membranes && model.membranes.length > 0;
-  const useDR = solver.useDynamicRelaxation ?? hasMembranes;
-
-  if (useDR && hasMembranes) {
-    // DYNAMIC RELAXATION - O(n) por iteración, ideal para membranas
-    const dt = solver.drTimeStep || 0.002;
-
-    // Fase de pre-calculo: Estimar masas basadas en Gerschgorin
-    // Para estabilidad, necesitamos m_i > 0.25 * dt^2 * lambda_max(K)
-    // Usamos sum(|K_ij|) como cota superior de lambda_max.
-    const sys0 = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: false });
-    const nDof = dofMap.nDof;
-    const m = new Array(nDof).fill(0);
-    const safety = 2.0;
-
-    for (let i = 0; i < nDof; i++) {
-      let sumK = 0;
-      for (let j = 0; j < nDof; j++) {
-        const val = sys0.K[i][j];
-        if (Number.isFinite(val)) sumK += Math.abs(val);
-      }
-      // m_i = safety * 0.25 * dt^2 * k_ii
-      let mi = safety * 0.25 * dt * dt * sumK;
-      m[i] = (Number.isFinite(mi) && mi > 1.0) ? mi : 1.0;
-    }
-
-    const computeForces = (xCurrent) => {
-      const sys = assembleSystem({ model, dofMap, x: xCurrent, cableCompressionEps: eps, skipK: true });
-      return {
-        energy: sys.energy,
-        grad: sys.grad,
-        metrics: sys.meta?.membranes?.metrics // Propagar métricas al DR
-      };
-    };
-
-    console.log(`DEBUG: Starting DR. dt=${dt}, mRange=[${Math.min(...m).toExponential(2)}, ${Math.max(...m).toExponential(2)}]`);
-
-    const drResult = solveDynamicRelaxationAdaptive(computeForces, x, {
-      maxIter: maxIt * 20,
-      tol: tol,
-      dt: dt,
-      fixedMasses: m,  // Pasar las masas precalculadas
-      debug: true      // Habilitar logs en los primeros pasos
-    });
-
-    // Ensamblar una última vez con K para metadata/reacciones si es necesario
-    const lastResult = assembleSystem({ model, dofMap, x: drResult.x, cableCompressionEps: eps, skipK: false });
-    return {
-      x: drResult.x,
-      converged: drResult.converged,
-      iterations: drResult.iterations,
-      gradInf: drResult.gradInf,
-      energy: lastResult.energy,
-      reason: drResult.reason,
-      solver: "dynamic_relaxation",
-      meta: lastResult.meta,
-      convergenceHistory: drResult.history
-    };
-  }
 
   // NEWTON-RAPHSON tradicional para sistemas sin membranas o si se fuerza
   const sailDampingInit = Number.isFinite(solver.sailDamping) ? solver.sailDamping : 10.0;
@@ -773,13 +693,13 @@ function solveEquilibrium3d({ model, solver, x0 }) {
     ? Math.max(0, solver.sailDampingMin)
     : 0.01;
 
-  // Mayor damping inicial para sistema 3D (más DOFs, y evitar oscilaciones por rigidez alta)
+  // Mayor damping inicial para sistema 3D (mas DOFs, y evitar oscilaciones por rigidez alta)
   let sailDampingFloor = hasMembranes ? Math.max(sailDampingMin, sailDampingInit) : sailDampingMin;
   let damping = hasMembranes ? Math.max(10.0, sailDampingInit) : 1.0;
   damping = Math.max(sailDampingFloor, damping);
 
-  // Límite de paso (trust region) opcional, basado en el tamaño de la malla de membrana.
-  // Por defecto se deja sin límite para mantener el comportamiento histórico.
+  // Limite de paso (trust region) opcional, basado en el tamanyo de la malla de membrana.
+  // Por defecto se deja sin limite para mantener el comportamiento historico.
   let stepCap = Infinity;
   const hasStepCapFrac = Number.isFinite(solver.sailStepCapFrac);
   const hasMaxStep = Number.isFinite(solver.sailMaxStepM);
@@ -843,7 +763,8 @@ function solveEquilibrium3d({ model, solver, x0 }) {
         energy: assembled.energy,
         gradInf: gInf,
         meta: assembled.meta,
-        convergenceHistory
+        convergenceHistory,
+        solver: "newton"
       };
     }
 
@@ -865,7 +786,7 @@ function solveEquilibrium3d({ model, solver, x0 }) {
 
     if (!success) break;
 
-    // Trust region / paso máximo
+    // Trust region / paso maximo
     if (Number.isFinite(stepCap) && stepCap < Infinity) {
       const maxDx = normInf(dx);
       if (maxDx > stepCap && maxDx > 0) {
@@ -945,16 +866,273 @@ function solveEquilibrium3d({ model, solver, x0 }) {
     maxDof: normInf(x)
   });
 
+  // IMPORTANTE: Si retornamos bestX en lugar de x, debemos re-ensamblar para obtener el meta correcto
+  const useBest = finalG >= minGrad;
+  const finalX = useBest ? bestX : x;
+  const finalAssembled = useBest ? assembleSystem({ model, dofMap, x: bestX, cableCompressionEps: eps }) : assembled;
+
   return {
-    x: finalG < minGrad ? x : bestX,
-    converged: (finalG < minGrad ? finalG : minGrad) < tol,
+    x: finalX,
+    converged: (useBest ? minGrad : finalG) < tol,
     iterations: maxIt,
-    energy: assembled.energy,
-    gradInf: finalG < minGrad ? finalG : minGrad,
+    energy: finalAssembled.energy,
+    gradInf: useBest ? minGrad : finalG,
     reason: "max_iterations",
-    meta: assembled.meta,
-    convergenceHistory
+    meta: finalAssembled.meta,
+    convergenceHistory,
+    solver: "newton"
   };
+}
+
+function solveEquilibrium3d({ model, solver, x0, prevModel }) {
+  const dofMap = buildDofMap3d(model.nodes);
+  let x = zeros(dofMap.nDof);
+
+  // Mapear DOFs del estado anterior al nuevo modelo basándose en nombres de nodos
+  // Esto preserva los desplazamientos convergidos cuando el modelo cambia de tamaño
+  if (x0 && x0.length > 0) {
+    if (prevModel && prevModel.nodes) {
+      // Construir dofMap del modelo anterior (sin importar flags actuales)
+      // Usamos los nodos originales del prevModel para el mapeo
+      const prevDofMap = buildDofMap3d(prevModel.nodes);
+
+      // Crear mapa de nombre de nodo a desplazamiento en x0
+      const nameToDisp = new Map();
+      for (const node of prevModel.nodes) {
+        if (node.fixed) continue;
+        const oldBase = prevDofMap.map.get(node.id);
+        if (oldBase !== undefined && oldBase + 2 < x0.length) {
+          nameToDisp.set(node.name, [x0[oldBase], x0[oldBase + 1], x0[oldBase + 2]]);
+        }
+      }
+
+      // Asignar desplazamientos al nuevo x basándose en nombres
+      let mappedCount = 0;
+      for (const node of model.nodes) {
+        if (node.fixed) continue;
+        const newBase = dofMap.map.get(node.id);
+        if (newBase === undefined) continue;
+        const disp = nameToDisp.get(node.name);
+        if (disp) {
+          x[newBase] = disp[0];
+          x[newBase + 1] = disp[1];
+          x[newBase + 2] = disp[2];
+          mappedCount++;
+        }
+      }
+      // console.log(`DEBUG: Mapped ${mappedCount} nodes from prev model`);
+    } else if (x0.length === dofMap.nDof) {
+      // Sin prevModel pero tamaños coinciden, usar directamente
+      x = x0.slice();
+    }
+  }
+
+  const tol = solver.toleranceN;
+  const maxIt = solver.maxIterations || 300;
+  const eps = solver.cableCompressionEps ?? 1e-6;
+
+  // SANITY CHECK: Verificar integridad del modelo antes de empezar
+  for (const node of model.nodes) {
+    if (!node.p0.every(Number.isFinite)) {
+      console.error(`FATAL: Node ${node.id} (${node.name}) has non-finite p0: ${node.p0}`);
+      throw new Error(`Invalid model: Node ${node.id} is corrupt`);
+    }
+  }
+
+  // VERIFICAR x0 inicial
+  for (let i = 0; i < x.length; i++) {
+    if (!Number.isFinite(x[i])) {
+      console.error(`FATAL: solveEquilibrium3d started with NaN at DOF ${i}. Resetting to 0.`);
+      x[i] = 0;
+    }
+  }
+
+  const sysInitial = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: true });
+  const gradMax0 = normInf(sysInitial.grad);
+  console.log(`DEBUG: Initial state: Energy=${sysInitial.energy.toExponential(4)}, GradMax=${gradMax0.toExponential(4)}, xNorm=${normInf(x).toExponential(4)}`);
+
+  if (gradMax0 > 1e10) {
+    let maxIdx = 0;
+    let maxVal = 0;
+    for (let i = 0; i < sysInitial.grad.length; i++) {
+      if (Math.abs(sysInitial.grad[i]) > maxVal) {
+        maxVal = Math.abs(sysInitial.grad[i]);
+        maxIdx = i;
+      }
+    }
+    console.warn(`WARNING: High GradMax detected at DOF ${maxIdx} (value: ${maxVal.toExponential(2)})`);
+    // Encontrar el nodo correspondiente
+    for (const [nodeId, base] of dofMap.map.entries()) {
+      if (maxIdx >= base && maxIdx < base + 3) {
+        const node = model.nodes[nodeId];
+        console.warn(`  Node: ${node.id} (${node.name}), p0: ${node.p0}`);
+        break;
+      }
+    }
+  }
+
+  // Detectar si hay membranas y usar Dynamic Relaxation
+  const hasMembranes = model.membranes && model.membranes.length > 0;
+  const useDR = solver.useDynamicRelaxation ?? hasMembranes;
+
+  if (useDR && hasMembranes) {
+    // DYNAMIC RELAXATION - O(n) por iteracion, ideal para membranas
+    const dt = Number.isFinite(solver.drTimeStep) ? solver.drTimeStep : 0.002;
+    const pressureRampIters = Number.isFinite(solver.pressureRampIters)
+      ? Math.max(0, Math.trunc(solver.pressureRampIters))
+      : 500;  // Rampa de presión gradual para membranas (más iteraciones = más estable)
+    const basePressure = (model.membranePressure && Number.isFinite(model.membranePressure.value))
+      ? model.membranePressure.value
+      : 0;
+    const usePressureRamp = pressureRampIters > 0 && Math.abs(basePressure) > 1e-12;
+    const minEdge = getMembraneMinEdge(model);
+    const drMaxStepM = Number.isFinite(solver.drMaxStepM) && solver.drMaxStepM > 0
+      ? solver.drMaxStepM
+      : (Number.isFinite(minEdge) ? Math.max(1e-4, 0.1 * minEdge) : undefined);
+
+    // Fase de pre-calculo: Estimar masas basadas en Gerschgorin
+    // Para estabilidad, necesitamos m_i > 0.25 * dt^2 * lambda_max(K)
+    // Usamos sum(|K_ij|) como cota superior de lambda_max.
+    const sys0 = assembleSystem({ model, dofMap, x, cableCompressionEps: eps, skipK: false });
+    const nDof = dofMap.nDof;
+    const m = new Array(nDof).fill(0);
+    const kRowSum = new Array(nDof).fill(0);
+    const safety = Number.isFinite(solver.drMassSafety) ? Math.max(0.1, solver.drMassSafety) : 2.0;
+
+    for (let i = 0; i < nDof; i++) {
+      let sumK = 0;
+      for (let j = 0; j < nDof; j++) {
+        const val = sys0.K[i][j];
+        if (Number.isFinite(val)) sumK += Math.abs(val);
+      }
+      kRowSum[i] = sumK;
+      // m_i = max(1.0, safety * 0.25 * dt^2 * sum|K_ij|)
+      const mi = safety * 0.25 * dt * dt * sumK;
+      m[i] = Math.max(1.0, Number.isFinite(mi) ? mi : 1.0);
+    }
+
+    const computeForces = (xCurrent, iter = 0) => {
+      let pressureScale = 1;
+      let savedPressure = null;
+      if (usePressureRamp) {
+        pressureScale = Math.min(1, Math.max(0, (iter + 1) / pressureRampIters));
+        savedPressure = basePressure;
+        model.membranePressure.value = savedPressure * pressureScale;
+      }
+      const sys = assembleSystem({ model, dofMap, x: xCurrent, cableCompressionEps: eps, skipK: true });
+      if (savedPressure !== null) model.membranePressure.value = savedPressure;
+      const baseMetrics = sys.meta?.membranes?.metrics || {};
+      const metrics = usePressureRamp ? { ...baseMetrics, pressureScale } : baseMetrics;
+      return {
+        energy: sys.energy,
+        grad: sys.grad,
+        metrics // Propagar mActricas al DR
+      };
+    };
+
+    const minMass = Math.min(...m);
+    const maxMass = Math.max(...m);
+    const drMaxIterations = Number.isFinite(solver.drMaxIterations)
+      ? Math.max(50, Math.trunc(solver.drMaxIterations))
+      : maxIt * 20;
+    console.log(`DEBUG: Starting DR. dt=${dt}, safety=${safety}, maxStep=${Number.isFinite(drMaxStepM) ? drMaxStepM.toExponential(2) : "auto"}, maxIter=${drMaxIterations}, mRange=[${minMass.toExponential(2)}, ${maxMass.toExponential(2)}]`);
+
+    const drResult = solveDynamicRelaxationAdaptive(computeForces, x, {
+      maxIter: drMaxIterations,
+      tol: tol,
+      dt: dt,
+      fixedMasses: m,  // Pasar las masas precalculadas
+      debug: Boolean(solver.drDebug),
+      viscousDamping: solver.drViscousDamping,
+      warmupIters: solver.drWarmupIters,
+      kineticBacktrack: solver.drKineticBacktrack,
+      maxStepM: drMaxStepM,
+      stabilityFactor: solver.drStabilityFactor,
+      stiffnessDiag: kRowSum,
+      minIter: usePressureRamp ? Math.max(0, pressureRampIters - 1) : 0,
+      minPressureScale: usePressureRamp ? Math.max(0, (pressureRampIters - 1) / pressureRampIters) : null
+    });
+
+    // Ensamblar una ultima vez con K para metadata/reacciones si es necesario
+    const lastResult = assembleSystem({ model, dofMap, x: drResult.x, cableCompressionEps: eps, skipK: false });
+    // Debug: Identify the DOF with highest gradient if not converged
+    if (!drResult.converged) {
+      const finalGrad = lastResult.grad;
+      let maxGradIdx = 0;
+      let maxGradVal = 0;
+      for (let i = 0; i < finalGrad.length; i++) {
+        const absVal = Math.abs(finalGrad[i]);
+        if (absVal > maxGradVal) {
+          maxGradVal = absVal;
+          maxGradIdx = i;
+        }
+      }
+      // Find the node corresponding to this DOF
+      for (const [nodeId, base] of dofMap.map.entries()) {
+        if (maxGradIdx >= base && maxGradIdx < base + 3) {
+          const node = model.nodes[nodeId];
+          const dofAxis = ['X', 'Y', 'Z'][maxGradIdx - base];
+          console.log(`DR DID NOT CONVERGE: MaxGrad=${maxGradVal.toFixed(2)}N at DOF ${maxGradIdx} (Node ${nodeId} "${node.name}" axis ${dofAxis})`);
+          console.log(`  Node p0: [${node.p0.map(v => v.toFixed(4)).join(', ')}], fixed: ${node.fixed}`);
+          break;
+        }
+      }
+    }
+
+    const drSummary = {
+      x: drResult.x,
+      converged: drResult.converged,
+      iterations: drResult.iterations,
+      gradInf: drResult.gradInf,
+      energy: lastResult.energy,
+      reason: drResult.reason,
+      solver: "dynamic_relaxation",
+      meta: lastResult.meta,
+      convergenceHistory: drResult.history
+    };
+
+    const drHighPrecisionTol = Number.isFinite(solver.drHighPrecisionTol)
+      ? solver.drHighPrecisionTol
+      : tol * 0.25;
+    const drNewtonFallbackAfter = Number.isFinite(solver.drNewtonFallbackAfter)
+      ? Math.max(0, Math.trunc(solver.drNewtonFallbackAfter))
+      : 1000;
+    const drStateIsFinite = Array.isArray(drResult.x) && drResult.x.every(Number.isFinite);
+    const fallbackByReason = drResult.reason === "nan_detected";
+    const needsNewtonFallback = drStateIsFinite && (
+      fallbackByReason ||
+      (drNewtonFallbackAfter > 0 &&
+        drResult.iterations >= drNewtonFallbackAfter &&
+        Number.isFinite(drResult.gradInf) &&
+        drResult.gradInf > drHighPrecisionTol)
+    );
+
+    if (needsNewtonFallback) {
+      const newtonTol = Math.min(tol, drHighPrecisionTol);
+      const newtonResult = solveEquilibriumNewton3d({
+        model,
+        dofMap,
+        solver,
+        x0: drResult.x,
+        tol: newtonTol,
+        maxIt,
+        eps,
+        hasMembranes
+      });
+      newtonResult.solver = "dynamic_relaxation+newton";
+      newtonResult.meta = {
+        ...(newtonResult.meta || {}),
+        drHistory: drResult.history,
+        drReason: drResult.reason,
+        drGradInf: drResult.gradInf
+      };
+      return newtonResult;
+    }
+
+    return drSummary;
+  }
+
+  return solveEquilibriumNewton3d({ model, dofMap, solver, x0: x, tol, maxIt, eps, hasMembranes });
 }
 
 function mastCurveFromModel(model, nodesPos) {
